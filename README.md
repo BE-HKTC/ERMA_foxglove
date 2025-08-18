@@ -105,12 +105,14 @@ Foxglove Studio originally began as a fork of [Webviz](https://github.com/cruise
 commands pour deployment complet :
 
 ```
-# Ubuntu 22.04 — Git LFS
+cd ~
 sudo apt-get update
-sudo apt-get install -y git-lfs
+sudo apt-get install -y git-lfs curl ca-certificates gnupg
+
+# Git LFS
 git lfs install --force
 
-# Clean clone with LFS
+# clean clone
 rm -rf ~/ERMA_foxglove
 git clone git@github.com:BE-HKTC/ERMA_foxglove.git ~/ERMA_foxglove
 cd ~/ERMA_foxglove
@@ -119,20 +121,20 @@ git lfs checkout
 
 # Node 18 + Yarn 3.6.3
 curl -fsSL https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash
-source ~/.nvm/nvm.sh
+. "$HOME/.nvm/nvm.sh"
 nvm install 18
 nvm use 18
 corepack enable
 corepack prepare yarn@3.6.3 --activate
 
-# Yarn config + install (fix checksum + TS patch)
+# Yarn install (fix checksums + TS patch)
 printf "checksumBehavior: update\nnodeLinker: node-modules\n" >> .yarnrc.yml
 yarn plugin import https://raw.githubusercontent.com/yarnpkg/berry/%40yarnpkg/cli-dist/bin/plugins/@yarnpkg/plugin-patch.js
 yarn cache clean
 yarn install
 
-# Docker build (ensure Dockerfile uses non-immutable install)
-sed -i 's/yarn install --immutable/yarn install --checksum-behavior=update/' Dockerfile
+# Docker build/run
+sed -i 's/yarn install --immutable/yarn install --checksum-behavior=update/' Dockerfile || true
 docker build -t erma-foxglove .
 docker run --rm -p 8084:8080 erma-foxglove
 
