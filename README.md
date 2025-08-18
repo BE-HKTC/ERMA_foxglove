@@ -94,3 +94,54 @@ Note: All contributors must agree to our [Contributor License Agreement](https:/
 ## Credits
 
 Foxglove Studio originally began as a fork of [Webviz](https://github.com/cruise-automation/webviz), an open source project developed by [Cruise](https://getcruise.com/). Most of the Webviz code has been rewritten, but some files still carry a Cruise license header where appropriate.
+
+
+
+
+
+# SPE HKTC :
+
+
+commands pour deployment complet :
+
+```
+# Ubuntu 22.04 — Git LFS
+sudo apt-get update
+sudo apt-get install -y git-lfs
+git lfs install --force
+
+# Clean clone with LFS
+rm -rf ~/ERMA_foxglove
+git clone git@github.com:BE-HKTC/ERMA_foxglove.git ~/ERMA_foxglove
+cd ~/ERMA_foxglove
+git lfs fetch --all
+git lfs checkout
+
+# Node 18 + Yarn 3.6.3
+curl -fsSL https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash
+source ~/.nvm/nvm.sh
+nvm install 18
+nvm use 18
+corepack enable
+corepack prepare yarn@3.6.3 --activate
+
+# Yarn config + install (fix checksum + TS patch)
+printf "checksumBehavior: update\nnodeLinker: node-modules\n" >> .yarnrc.yml
+yarn plugin import https://raw.githubusercontent.com/yarnpkg/berry/%40yarnpkg/cli-dist/bin/plugins/@yarnpkg/plugin-patch.js
+yarn cache clean
+yarn install
+
+# Docker build (ensure Dockerfile uses non-immutable install)
+sed -i 's/yarn install --immutable/yarn install --checksum-behavior=update/' Dockerfile
+docker build -t erma-foxglove .
+docker run --rm -p 8084:8080 erma-foxglove
+
+# Google Chrome (apt repo)
+sudo install -m 0755 -d /etc/apt/keyrings
+wget -qO- https://dl.google.com/linux/linux_signing_key.pub \
+  | sudo gpg --dearmor -o /etc/apt/keyrings/google-linux.gpg
+echo "deb [arch=amd64 signed-by=/etc/apt/keyrings/google-linux.gpg] http://dl.google.com/linux/chrome/deb/ stable main" \
+  | sudo tee /etc/apt/sources.list.d/google-chrome.list
+sudo apt update
+sudo apt install -y google-chrome-stable
+```
