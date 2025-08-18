@@ -1,9 +1,10 @@
+# syntax=docker/dockerfile:1.4
 # Build stage
-FROM node:16 as build
+FROM node:18 as build
 WORKDIR /src
 COPY . ./
 
-RUN corepack enable
+RUN corepack enable && corepack prepare yarn@3.6.3 --activate && corepack prepare yarn@3.6.3 --activate && corepack prepare yarn@3.6.3 --activate
 RUN yarn install --immutable
 
 RUN yarn run web:build:prod
