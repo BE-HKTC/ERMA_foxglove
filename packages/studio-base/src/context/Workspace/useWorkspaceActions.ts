@@ -133,7 +133,12 @@ export function useWorkspaceActions(): WorkspaceActions {
       return;
     }
 
-    const file = await fileHandles[0].getFile();
+    const [fileHandle] = fileHandles;
+    if (!fileHandle) {
+      return;
+    }
+
+    const file = await fileHandle.getFile();
     const content = await file.text();
 
     if (!isMounted()) {
