@@ -23,6 +23,7 @@ import {
 import useCallbackWithToast from "@foxglove/studio-base/hooks/useCallbackWithToast";
 import { AppEvent } from "@foxglove/studio-base/services/IAnalytics";
 import { downloadTextFile } from "@foxglove/studio-base/util/download";
+import showOpenFilePicker from "@foxglove/studio-base/util/showOpenFilePicker";
 
 import {
   LeftSidebarItemKey,
@@ -132,7 +133,12 @@ export function useWorkspaceActions(): WorkspaceActions {
       return;
     }
 
-    const file = await fileHandles[0].getFile();
+    const [fileHandle] = fileHandles;
+    if (!fileHandle) {
+      return;
+    }
+
+    const file = await fileHandle.getFile();
     const content = await file.text();
 
     if (!isMounted()) {
