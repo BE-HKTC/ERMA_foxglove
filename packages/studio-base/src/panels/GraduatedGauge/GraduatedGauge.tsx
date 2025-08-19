@@ -26,6 +26,8 @@ const defaultConfig: Config = {
   colorMode: "colormap",
   gradient: ["#0000ff", "#ff00ff"],
   reverse: false,
+  showGraduations: true,
+  graduationScale: 10,
 };
 
 type State = {
@@ -277,16 +279,24 @@ export function GraduatedGauge({ context }: Props): JSX.Element {
     ) + padding;
   const needleThickness = 8;
   const needleExtraLength = 0.05;
-  const numTicks = 10;
-  const ticks = new Array(numTicks + 1).fill(undefined).map((_x, i) => {
-    const angle = -Math.PI / 2 + gaugeAngle + (i / numTicks) * 2 * (Math.PI / 2 - gaugeAngle);
-    return {
-      x1: centerX + innerRadius * Math.cos(angle),
-      y1: centerY - innerRadius * Math.sin(angle),
-      x2: centerX + radius * Math.cos(angle),
-      y2: centerY - radius * Math.sin(angle),
-    };
-  });
+  const numTicks = Math.max(1, config.graduationScale);
+  const labelRadius = (innerRadius + radius) / 2;
+  const ticks = config.showGraduations
+    ? new Array(numTicks + 1).fill(undefined).map((_x, i) => {
+        const angle =
+          -Math.PI / 2 + gaugeAngle + (i / numTicks) * 2 * (Math.PI / 2 - gaugeAngle);
+        const value = minValue + (i / numTicks) * (maxValue - minValue);
+        return {
+          x1: centerX + innerRadius * Math.cos(angle),
+          y1: centerY - innerRadius * Math.sin(angle),
+          x2: centerX + radius * Math.cos(angle),
+          y2: centerY - radius * Math.sin(angle),
+          lx: centerX + labelRadius * Math.cos(angle),
+          ly: centerY - labelRadius * Math.sin(angle),
+          value,
+        };
+      })
+    : [];
   const [clipPathId] = useState(() => `gauge-clip-path-${uuidv4()}`);
   return (
     <div
@@ -321,23 +331,37 @@ export function GraduatedGauge({ context }: Props): JSX.Element {
               opacity: state.latestMatchingQueriedData == undefined ? 0.5 : 1,
             }}
           />
-          <svg
-            viewBox={`0 0 ${width} ${height}`}
-            style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%" }}
-          >
-            {ticks.map((tick, i) => (
-              <line
-                // eslint-disable-next-line react/no-array-index-key
-                key={i}
-                x1={tick.x1}
-                y1={tick.y1}
-                x2={tick.x2}
-                y2={tick.y2}
-                stroke="black"
-                strokeWidth={0.01}
-              />
-            ))}
-          </svg>
+          {config.showGraduations && (
+            <svg
+              viewBox={`0 0 ${width} ${height}`}
+              style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%" }}
+            >
+              {ticks.map((tick, i) => (
+                <g
+                  // eslint-disable-next-line react/no-array-index-key
+                  key={i}
+                >
+                  <line
+                    x1={tick.x1}
+                    y1={tick.y1}
+                    x2={tick.x2}
+                    y2={tick.y2}
+                    stroke="black"
+                    strokeWidth={0.01}
+                  />
+                  <text
+                    x={tick.lx}
+                    y={tick.ly}
+                    fontSize={0.05}
+                    textAnchor="middle"
+                    dominantBaseline="central"
+                  >
+                    {tick.value.toFixed(2)}
+                  </text>
+                </g>
+              ))}
+            </svg>
+          )}
           <div
             style={{
               backgroundColor: outOfBounds ? "orange" : "white",
@@ -361,6 +385,17 @@ export function GraduatedGauge({ context }: Props): JSX.Element {
               display: Number.isFinite(scaledValue) ? "block" : "none",
             }}
           />
+          <div
+            style={{
+              position: "absolute",
+              top: "50%",
+              left: "50%",
+              transform: "translate(-50%, -50%)",
+              pointerEvents: "none",
+            }}
+          >
+            {Number.isFinite(rawValue) ? rawValue.toFixed(2) : ""}
+          </div>
         </div>
         <svg style={{ position: "absolute" }}>
           <clipPath id={clipPathId} clipPathUnits="objectBoundingBox">
