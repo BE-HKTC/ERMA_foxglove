@@ -67,6 +67,18 @@ export function useSettingsTree(
           input: "number",
           value: config.maxValue,
         },
+        showGraduations: {
+          label: "Show graduations",
+          input: "boolean",
+          value: config.showGraduations,
+        },
+        ...(config.showGraduations && {
+          graduationScale: {
+            label: "Graduation scale",
+            input: "number",
+            value: config.graduationScale,
+          },
+        }),
         colorMode: {
           label: "Color mode",
           input: "select",
