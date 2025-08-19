@@ -13,6 +13,8 @@ export const panels: Partial<TypeOptions["resources"]["panels"]> = {
   dataSourceInfoDescription: "查看当前数据源的主题和时间戳等详细信息。",
   gauge: "仪表",
   gaugeDescription: "基于连续值显示彩色仪表。",
+  graduatedGauge: "刻度仪表",
+  graduatedGaugeDescription: "显示带刻度的彩色仪表。",
   image: "图像",
   imageDescription: "显示带注释的图像。",
   indicator: "指示器",

@@ -8,6 +8,7 @@ import { TAB_PANEL_TYPE } from "@foxglove/studio-base/util/globalConstants";
 
 import dataSourceInfoThumbnail from "./DataSourceInfo/thumbnail.png";
 import gaugeThumbnail from "./Gauge/thumbnail.png";
+import graduatedGaugeThumbnail from "./GraduatedGauge/thumbnail.png";
 import imageThumbnail from "./Image/thumbnail.png";
 import indicatorThumbnail from "./Indicator/thumbnail.png";
 import logThumbnail from "./Log/thumbnail.png";
@@ -70,6 +71,13 @@ export const getBuiltin: (t: TFunction<"panels">) => PanelInfo[] = (t) => [
     description: t("gaugeDescription"),
     thumbnail: gaugeThumbnail,
     module: async () => await import("./Gauge"),
+  },
+  {
+    title: t("graduatedGauge"),
+    type: "GraduatedGauge",
+    description: t("graduatedGaugeDescription"),
+    thumbnail: graduatedGaugeThumbnail,
+    module: async () => await import("./GraduatedGauge"),
   },
   {
     title: t("teleop"),

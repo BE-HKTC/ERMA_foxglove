@@ -14,6 +14,8 @@ export const panels: Partial<TypeOptions["resources"]["panels"]> = {
     "現在のデータソースに関するトピックやタイムスタンプなどの詳細を表示します。",
   gauge: "ゲージ",
   gaugeDescription: "連続値に基づく色付きのゲージを表示します。",
+  graduatedGauge: "目盛り付きゲージ",
+  graduatedGaugeDescription: "目盛り付きの連続値ゲージを表示します。",
   image: "画像",
   imageDescription: "注釈付きの画像を表示します。",
   indicator: "インジケーター",
