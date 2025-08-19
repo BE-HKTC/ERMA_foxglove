@@ -26,6 +26,7 @@ export const appBar: Partial<TypeOptions["resources"]["appBar"]> = {
   settings: "设置",
   showLeftSidebar: "显示左侧边栏",
   showRightSidebar: "显示右侧边栏",
+  shareLayout: "Share layout",
   signIn: "登录",
   signOut: "登出",
   unknown: "未知",

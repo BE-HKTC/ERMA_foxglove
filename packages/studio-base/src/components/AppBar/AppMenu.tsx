@@ -165,6 +165,15 @@ export function AppMenu(props: AppMenuProps): JSX.Element {
           handleNestedMenuClose();
         },
       },
+      {
+        type: "item",
+        label: t("shareLayout"),
+        key: "share-layout",
+        onClick: () => {
+          layoutActions.share();
+          handleNestedMenuClose();
+        },
+      },
     ],
     [
       handleNestedMenuClose,

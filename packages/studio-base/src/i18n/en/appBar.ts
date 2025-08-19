@@ -26,6 +26,7 @@ export const appBar = {
   settings: "Visualization settings",
   showLeftSidebar: "Show left sidebar",
   showRightSidebar: "Show right sidebar",
+  shareLayout: "Share layout",
   signIn: "Sign in",
   signOut: "Sign out",
   unknown: "unknown",

@@ -6,6 +6,7 @@ import { Draft, produce } from "immer";
 import * as _ from "lodash-es";
 import { Dispatch, SetStateAction, useCallback, useMemo } from "react";
 import { useMountedState } from "react-use";
+import { useSnackbar } from "notistack";
 
 import { useGuaranteedContext } from "@foxglove/hooks";
 import { AppSettingsTab } from "@foxglove/studio-base/components/AppSettingsDialog/AppSettingsDialog";
@@ -23,6 +24,8 @@ import {
 import useCallbackWithToast from "@foxglove/studio-base/hooks/useCallbackWithToast";
 import { AppEvent } from "@foxglove/studio-base/services/IAnalytics";
 import { downloadTextFile } from "@foxglove/studio-base/util/download";
+import clipboard from "@foxglove/studio-base/util/clipboard";
+import { updateAppURLState } from "@foxglove/studio-base/util/appURLState";
 import showOpenFilePicker from "@foxglove/studio-base/util/showOpenFilePicker";
 
 import {
@@ -81,6 +84,8 @@ export type WorkspaceActions = {
     // Export the current layout to a file
     // This will perform a browser download of the current layout to a file
     exportToFile: () => void;
+    // Upload the current layout to the server and copy a shareable URL
+    share: () => void;
   };
 };
 
@@ -102,6 +107,7 @@ export function useWorkspaceActions(): WorkspaceActions {
 
   const analytics = useAnalytics();
   const appContext = useAppContext();
+  const { enqueueSnackbar } = useSnackbar();
 
   const isMounted = useMountedState();
 
@@ -182,6 +188,28 @@ export function useWorkspaceActions(): WorkspaceActions {
     downloadTextFile(content, `${name}.json`);
     void analytics.logEvent(AppEvent.LAYOUT_EXPORT);
   }, [analytics, getCurrentLayoutState]);
+
+  const shareLayout = useCallbackWithToast(async () => {
+    const layoutData = getCurrentLayoutState().selectedLayout?.data;
+    if (!layoutData) {
+      return;
+    }
+
+    const name = getCurrentLayoutState().selectedLayout?.name ?? `layout-${Date.now()}`;
+    const response = await fetch(`/layouts/${name}.json`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(layoutData),
+    });
+    if (!response.ok) {
+      throw new Error(`Failed to save layout: ${response.statusText}`);
+    }
+
+    const shareUrl = updateAppURLState(new URL(window.location.href), { layout: name });
+    await clipboard.copy(shareUrl.href);
+    enqueueSnackbar("Copied layout URL to clipboard", { variant: "success" });
+    void analytics.logEvent(AppEvent.LAYOUT_SHARE);
+  }, [analytics, enqueueSnackbar, getCurrentLayoutState]);
 
   return useMemo(() => {
     return {
@@ -322,7 +350,8 @@ export function useWorkspaceActions(): WorkspaceActions {
       layoutActions: {
         importFromFile: importLayoutFromFile,
         exportToFile: exportLayoutToFile,
+        share: shareLayout,
       },
     };
-  }, [exportLayoutToFile, importLayoutFromFile, openFile, set]);
+  }, [exportLayoutToFile, importLayoutFromFile, shareLayout, openFile, set]);
 }

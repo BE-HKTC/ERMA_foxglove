@@ -22,6 +22,7 @@ export const appBar: Partial<TypeOptions["resources"]["appBar"]> = {
   openLocalFile: "ローカルファイルを開く",
   recentDataSources: "最近のデータソース",
   settings: "設定",
+  shareLayout: "Share layout",
   signIn: "ログイン",
   signOut: "ログアウト",
   unknown: "不明",
