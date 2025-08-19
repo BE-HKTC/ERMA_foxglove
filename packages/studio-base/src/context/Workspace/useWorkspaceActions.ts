@@ -23,6 +23,7 @@ import {
 import useCallbackWithToast from "@foxglove/studio-base/hooks/useCallbackWithToast";
 import { AppEvent } from "@foxglove/studio-base/services/IAnalytics";
 import { downloadTextFile } from "@foxglove/studio-base/util/download";
+import showOpenFilePicker from "@foxglove/studio-base/util/showOpenFilePicker";
 
 import {
   LeftSidebarItemKey,
