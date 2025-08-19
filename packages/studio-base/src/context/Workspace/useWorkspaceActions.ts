@@ -196,16 +196,22 @@ export function useWorkspaceActions(): WorkspaceActions {
     }
 
     const name = getCurrentLayoutState().selectedLayout?.name ?? `layout-${Date.now()}`;
-    const response = await fetch(`/layouts/${name}.json`, {
-      method: "PUT",
+    const response = await fetch(`/layouts`, {
+      method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(layoutData),
+      body: JSON.stringify({ name, data: layoutData }),
     });
     if (!response.ok) {
       throw new Error(`Failed to save layout: ${response.statusText}`);
     }
 
-    const shareUrl = updateAppURLState(new URL(window.location.href), { layout: name });
+    const { name: savedName = name } = (await response.json().catch(() => ({ name }))) as {
+      name?: string;
+    };
+
+    const shareUrl = updateAppURLState(new URL(window.location.href), {
+      layout: savedName,
+    });
     await clipboard.copy(shareUrl.href);
     enqueueSnackbar("Copied layout URL to clipboard", { variant: "success" });
     void analytics.logEvent(AppEvent.LAYOUT_SHARE);
