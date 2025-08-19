@@ -196,6 +196,8 @@ export function GraduatedGauge({ context }: Props): JSX.Element {
     }),
   );
 
+  const [colorScheme, setColorScheme] = useState<"dark" | "light">("light");
+
   useLayoutEffect(() => {
     dispatch({ type: "path", path: config.path });
   }, [config.path]);
@@ -216,9 +218,14 @@ export function GraduatedGauge({ context }: Props): JSX.Element {
       if (renderState.currentFrame) {
         dispatch({ type: "frame", messages: renderState.currentFrame });
       }
+
+      if (renderState.colorScheme) {
+        setColorScheme(renderState.colorScheme);
+      }
     };
     context.watch("currentFrame");
     context.watch("didSeek");
+    context.watch("colorScheme");
 
     return () => {
       context.onRender = undefined;
@@ -280,11 +287,13 @@ export function GraduatedGauge({ context }: Props): JSX.Element {
   const needleThickness = 8;
   const needleExtraLength = 0.05;
   const numTicks = Math.max(1, config.graduationScale);
-  const labelRadius = (innerRadius + radius) / 2;
+  const labelRadius = radius + 0.08;
+  const startAngle = Math.PI - gaugeAngle;
+  const endAngle = gaugeAngle;
+  const angleRange = startAngle - endAngle;
   const ticks = config.showGraduations
     ? new Array(numTicks + 1).fill(undefined).map((_x, i) => {
-        const angle =
-          -Math.PI / 2 + gaugeAngle + (i / numTicks) * 2 * (Math.PI / 2 - gaugeAngle);
+        const angle = startAngle - (i / numTicks) * angleRange;
         const value = minValue + (i / numTicks) * (maxValue - minValue);
         return {
           x1: centerX + innerRadius * Math.cos(angle),
@@ -297,6 +306,7 @@ export function GraduatedGauge({ context }: Props): JSX.Element {
         };
       })
     : [];
+  const textColor = colorScheme === "dark" ? "#fff" : "#000";
   const [clipPathId] = useState(() => `gauge-clip-path-${uuidv4()}`);
   return (
     <div
@@ -346,7 +356,7 @@ export function GraduatedGauge({ context }: Props): JSX.Element {
                     y1={tick.y1}
                     x2={tick.x2}
                     y2={tick.y2}
-                    stroke="black"
+                    stroke={textColor}
                     strokeWidth={0.01}
                   />
                   <text
@@ -355,6 +365,7 @@ export function GraduatedGauge({ context }: Props): JSX.Element {
                     fontSize={0.05}
                     textAnchor="middle"
                     dominantBaseline="central"
+                    fill={textColor}
                   >
                     {tick.value.toFixed(2)}
                   </text>
@@ -392,6 +403,7 @@ export function GraduatedGauge({ context }: Props): JSX.Element {
               left: "50%",
               transform: "translate(-50%, -50%)",
               pointerEvents: "none",
+              color: textColor,
             }}
           >
             {Number.isFinite(rawValue) ? rawValue.toFixed(2) : ""}
