@@ -25,6 +25,8 @@ export const appBar: Partial<TypeOptions["resources"]["appBar"]> = {
   shareLayout: "Share layout",
   saveLayout: "レイアウトを保存",
   savedLayouts: "保存されたレイアウト",
+  layouts: "Layouts…",
+  layoutName: "Layout name",
   signIn: "ログイン",
   signOut: "ログアウト",
   unknown: "不明",

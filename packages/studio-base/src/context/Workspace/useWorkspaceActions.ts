@@ -54,6 +54,10 @@ export type WorkspaceActions = {
       close: () => void;
       open: (initialTab?: AppSettingsTab) => void;
     };
+    layouts: {
+      open: () => void;
+      close: () => void;
+    };
   };
 
   featureTourActions: {
@@ -88,9 +92,9 @@ export type WorkspaceActions = {
     // This will perform a browser download of the current layout to a file
     exportToFile: () => void;
     // Upload the current layout to the server and copy a shareable URL
-    share: () => void;
+    share: (name?: string) => void;
     // Save the current layout to the server without copying a URL
-    save: () => Promise<void>;
+    save: (name?: string) => Promise<void>;
     // Fetch saved layout names from the server
     fetchSavedLayouts: () => Promise<string[]>;
     // Open a saved layout in a new browser tab
@@ -227,14 +231,14 @@ export function useWorkspaceActions(): WorkspaceActions {
     }
   }, []);
 
-  const shareLayout = useCallbackWithToast(async () => {
+  const shareLayout = useCallbackWithToast(async (rawName?: string) => {
     const layoutData = getCurrentLayoutState().selectedLayout?.data;
     if (!layoutData) {
       return;
     }
 
-    const rawName = getCurrentLayoutState().selectedLayout?.name ?? `layout-${Date.now()}`;
-    const safeName = rawName.replace(/[^a-z0-9._-]/gi, "_");
+    const baseName = rawName ?? getCurrentLayoutState().selectedLayout?.name ?? `layout-${Date.now()}`;
+    const safeName = baseName.replace(/[^a-z0-9._-]/gi, "_");
     log.debug("shareLayout: uploading", safeName);
     const response = await fetch(`/layouts/${safeName}.json`, {
       method: "PUT",
@@ -257,18 +261,18 @@ export function useWorkspaceActions(): WorkspaceActions {
     void analytics.logEvent(AppEvent.LAYOUT_SHARE);
   }, [analytics, enqueueSnackbar, getCurrentLayoutState, upsertLayoutIndex]);
 
-  const saveLayout = useCallback(async () => {
+  const saveLayout = useCallback(async (rawName?: string) => {
     const layoutData = getCurrentLayoutState().selectedLayout?.data;
     if (!layoutData) {
       return;
     }
 
-    const rawName = prompt("Enter layout name");
-    if (!rawName) {
+    const baseName = rawName ?? prompt("Enter layout name");
+    if (!baseName) {
       return;
     }
 
-    const safeName = rawName.replace(/[^a-z0-9._-]/gi, "_");
+    const safeName = baseName.replace(/[^a-z0-9._-]/gi, "_");
     log.debug("saveLayout: saving", safeName);
     const response = await fetch(`/layouts/${safeName}.json`, {
       method: "PUT",
@@ -341,6 +345,19 @@ export function useWorkspaceActions(): WorkspaceActions {
           open: (initialTab?: AppSettingsTab) => {
             set((draft) => {
               draft.dialogs.preferences = { open: true, initialTab };
+            });
+          },
+        },
+
+        layouts: {
+          open: () => {
+            set((draft) => {
+              draft.dialogs.layouts.open = true;
+            });
+          },
+          close: () => {
+            set((draft) => {
+              draft.dialogs.layouts.open = false;
             });
           },
         },

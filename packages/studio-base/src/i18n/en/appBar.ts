@@ -29,6 +29,8 @@ export const appBar = {
   shareLayout: "Share layout",
   saveLayout: "Save layout",
   savedLayouts: "Saved layouts",
+  layouts: "Layouts…",
+  layoutName: "Layout name",
   signIn: "Sign in",
   signOut: "Sign out",
   unknown: "unknown",

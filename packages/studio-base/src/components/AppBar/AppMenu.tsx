@@ -3,7 +3,7 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 import { Menu, PaperProps, PopoverPosition, PopoverReference } from "@mui/material";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { makeStyles } from "tss-react/mui";
 
@@ -46,19 +46,13 @@ export function AppMenu(props: AppMenuProps): JSX.Element {
   const { t } = useTranslation("appBar");
 
   const [nestedMenu, setNestedMenu] = useState<string | undefined>();
-  const [savedLayouts, setSavedLayouts] = useState<string[]>([]);
 
   const { recentSources, selectRecent } = usePlayerSelection();
 
   const leftSidebarOpen = useWorkspaceStore(selectLeftSidebarOpen);
   const rightSidebarOpen = useWorkspaceStore(selectRightSidebarOpen);
-  const { sidebarActions, dialogActions, layoutActions } = useWorkspaceActions();
+  const { sidebarActions, dialogActions } = useWorkspaceActions();
 
-  useEffect(() => {
-    layoutActions.fetchSavedLayouts().then(setSavedLayouts).catch(() => {
-      setSavedLayouts([]);
-    });
-  }, [layoutActions]);
 
   const handleNestedMenuClose = useCallback(() => {
     setNestedMenu(undefined);
@@ -156,63 +150,17 @@ export function AppMenu(props: AppMenuProps): JSX.Element {
       },
       {
         type: "item",
-        label: t("importLayoutFromFile"),
-        key: "import-layout",
+        label: t("layouts"),
+        key: "layouts",
         onClick: () => {
-          layoutActions.importFromFile();
+          dialogActions.layouts.open();
           handleNestedMenuClose();
         },
       },
-      {
-        type: "item",
-        label: t("exportLayoutToFile"),
-        key: "export-layout",
-        onClick: () => {
-          layoutActions.exportToFile();
-          handleNestedMenuClose();
-        },
-      },
-      {
-        type: "item",
-        label: t("shareLayout"),
-        key: "share-layout",
-        onClick: () => {
-          layoutActions.share();
-          handleNestedMenuClose();
-        },
-      },
-      {
-        type: "item",
-        label: t("saveLayout"),
-        key: "save-layout",
-        onClick: () => {
-          layoutActions.save().then(() => {
-            layoutActions
-              .fetchSavedLayouts()
-              .then(setSavedLayouts)
-              .catch(() => {
-                setSavedLayouts([]);
-              });
-          });
-          handleNestedMenuClose();
-        },
-      },
-      { type: "divider" },
-      { type: "item", label: t("savedLayouts"), key: "saved-layouts", disabled: true },
-      ...savedLayouts.map((name) => ({
-        type: "item" as const,
-        key: `saved-layout-${name}`,
-        label: name,
-        onClick: () => {
-          layoutActions.openSaved(name);
-          handleNestedMenuClose();
-        },
-      })),
     ],
     [
+      dialogActions.layouts,
       handleNestedMenuClose,
-      layoutActions,
-      savedLayouts,
       leftSidebarOpen,
       rightSidebarOpen,
       sidebarActions.left,

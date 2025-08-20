@@ -29,6 +29,8 @@ export const appBar: Partial<TypeOptions["resources"]["appBar"]> = {
   shareLayout: "Share layout",
   saveLayout: "保存布局",
   savedLayouts: "已保存的布局",
+  layouts: "Layouts…",
+  layoutName: "Layout name",
   signIn: "登录",
   signOut: "登出",
   unknown: "未知",

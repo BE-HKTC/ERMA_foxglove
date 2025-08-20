@@ -32,6 +32,9 @@ export type WorkspaceContextStore = {
       initialTab: undefined | AppSettingsTab;
       open: boolean;
     };
+    layouts: {
+      open: boolean;
+    };
   };
   featureTours: {
     active: undefined | string;

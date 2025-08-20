@@ -532,6 +532,9 @@ export default function Workspace(props: WorkspaceProps): JSX.Element {
         initialTab: undefined,
         open: false,
       },
+      layouts: {
+        open: false,
+      },
     },
   };
 
