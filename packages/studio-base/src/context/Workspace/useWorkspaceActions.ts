@@ -167,6 +167,7 @@ export function useWorkspaceActions(): WorkspaceActions {
     }
 
     log.debug("importLayoutFromFile: file selected", fileHandle.name);
+
     const file = await fileHandle.getFile();
     const content = await file.text();
 
