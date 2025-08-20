@@ -13,15 +13,19 @@ RUN yarn run web:build:prod
 FROM node:18-alpine
 WORKDIR /app
 
+ENV LAYOUTS_DIR=/foxglove/layouts
+
 COPY --from=build /src/web/.webpack ./public
 COPY --from=build /src/node_modules ./node_modules
 COPY web/server.mjs ./server.mjs
+
+VOLUME ["/foxglove/layouts"]
 
 EXPOSE 8080
 
 COPY <<EOF /entrypoint.sh
 # Optionally override the default layout with one provided via bind mount
-mkdir -p /foxglove
+mkdir -p /foxglove/layouts
 touch /foxglove/default-layout.json
 index_html=\$(cat public/index.html)
 replace_pattern='/*FOXGLOVE_STUDIO_DEFAULT_LAYOUT_PLACEHOLDER*/'
