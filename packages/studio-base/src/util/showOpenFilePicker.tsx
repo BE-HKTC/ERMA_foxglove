@@ -9,12 +9,65 @@
 export default async function showOpenFilePicker(
   options?: OpenFilePickerOptions,
 ): Promise<FileSystemFileHandle[] /* foxglove-depcheck-used: @types/wicg-file-system-access */> {
-  try {
-    return await window.showOpenFilePicker(options);
-  } catch (err) {
-    if (err.name === "AbortError") {
-      return [];
+  if (typeof window.showOpenFilePicker === "function") {
+    try {
+      return await window.showOpenFilePicker(options);
+    } catch (err) {
+      if ((err as DOMException).name === "AbortError") {
+        return [];
+      }
+      throw err;
     }
-    throw err;
   }
+
+  return new Promise<FileSystemFileHandle[]>((resolve) => {
+    const input = document.createElement("input");
+    input.type = "file";
+    input.multiple = options?.multiple ?? false;
+
+    if (options?.types) {
+      const accept: string[] = [];
+      for (const type of options.types) {
+        for (const exts of Object.values(type.accept)) {
+          accept.push(...exts);
+        }
+      }
+      if (accept.length > 0) {
+        input.accept = accept.join(",");
+      }
+    }
+
+    const cleanup = () => {
+      window.removeEventListener("focus", onFocus);
+      input.remove();
+    };
+
+    const onFocus = () => {
+      // When the file dialog closes without selecting a file, no change event is fired.
+      // We detect this by waiting for focus to return to the window and checking if any
+      // files were selected.
+      setTimeout(() => {
+        if (!input.files || input.files.length === 0) {
+          cleanup();
+          resolve([]);
+        }
+      }, 0);
+    };
+
+    input.addEventListener("change", () => {
+      const files = Array.from(input.files ?? []);
+      cleanup();
+      resolve(
+        files.map((file) => ({
+          kind: "file",
+          name: file.name,
+          // Only the getFile method is used by callers.
+          getFile: async () => file,
+        })) as unknown as FileSystemFileHandle[],
+      );
+    });
+
+    window.addEventListener("focus", onFocus, { once: true });
+    input.click();
+  });
 }

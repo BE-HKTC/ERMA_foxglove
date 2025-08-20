@@ -6,6 +6,7 @@ import { Draft, produce } from "immer";
 import * as _ from "lodash-es";
 import { Dispatch, SetStateAction, useCallback, useMemo } from "react";
 import { useMountedState } from "react-use";
+import { useSnackbar } from "notistack";
 
 import { useGuaranteedContext } from "@foxglove/hooks";
 import { AppSettingsTab } from "@foxglove/studio-base/components/AppSettingsDialog/AppSettingsDialog";
@@ -23,6 +24,9 @@ import {
 import useCallbackWithToast from "@foxglove/studio-base/hooks/useCallbackWithToast";
 import { AppEvent } from "@foxglove/studio-base/services/IAnalytics";
 import { downloadTextFile } from "@foxglove/studio-base/util/download";
+import clipboard from "@foxglove/studio-base/util/clipboard";
+import { updateAppURLState } from "@foxglove/studio-base/util/appURLState";
+import showOpenFilePicker from "@foxglove/studio-base/util/showOpenFilePicker";
 
 import {
   LeftSidebarItemKey,
@@ -80,6 +84,14 @@ export type WorkspaceActions = {
     // Export the current layout to a file
     // This will perform a browser download of the current layout to a file
     exportToFile: () => void;
+    // Upload the current layout to the server and copy a shareable URL
+    share: () => void;
+    // Save the current layout to the server without copying a URL
+    save: () => Promise<void>;
+    // Fetch saved layout names from the server
+    fetchSavedLayouts: () => Promise<string[]>;
+    // Open a saved layout in a new browser tab
+    openSaved: (name: string) => void;
   };
 };
 
@@ -101,6 +113,7 @@ export function useWorkspaceActions(): WorkspaceActions {
 
   const analytics = useAnalytics();
   const appContext = useAppContext();
+  const { enqueueSnackbar } = useSnackbar();
 
   const isMounted = useMountedState();
 
@@ -132,7 +145,12 @@ export function useWorkspaceActions(): WorkspaceActions {
       return;
     }
 
-    const file = await fileHandles[0].getFile();
+    const [fileHandle] = fileHandles;
+    if (!fileHandle) {
+      return;
+    }
+
+    const file = await fileHandle.getFile();
     const content = await file.text();
 
     if (!isMounted()) {
@@ -176,6 +194,92 @@ export function useWorkspaceActions(): WorkspaceActions {
     downloadTextFile(content, `${name}.json`);
     void analytics.logEvent(AppEvent.LAYOUT_EXPORT);
   }, [analytics, getCurrentLayoutState]);
+
+  const upsertLayoutIndex = useCallback(async (name: string) => {
+    let names: string[] = [];
+    try {
+      const indexResponse = await fetch("/layouts/index.json");
+      if (indexResponse.ok) {
+        names = (await indexResponse.json()) as string[];
+      }
+    } catch {
+      names = [];
+    }
+
+    if (!names.includes(name)) {
+      names.push(name);
+      await fetch("/layouts/index.json", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(names),
+      });
+    }
+  }, []);
+
+  const shareLayout = useCallbackWithToast(async () => {
+    const layoutData = getCurrentLayoutState().selectedLayout?.data;
+    if (!layoutData) {
+      return;
+    }
+
+    const rawName = getCurrentLayoutState().selectedLayout?.name ?? `layout-${Date.now()}`;
+    const safeName = rawName.replace(/[^a-z0-9._-]/gi, "_");
+    const response = await fetch(`/layouts/${safeName}.json`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(layoutData),
+    });
+    if (!response.ok) {
+      throw new Error(`Failed to save layout: ${response.statusText}`);
+    }
+
+    await upsertLayoutIndex(safeName);
+
+    const shareUrl = updateAppURLState(new URL(window.location.href), {
+      layout: safeName,
+    });
+    await clipboard.copy(shareUrl.href);
+    enqueueSnackbar("Copied layout URL to clipboard", { variant: "success" });
+    void analytics.logEvent(AppEvent.LAYOUT_SHARE);
+  }, [analytics, enqueueSnackbar, getCurrentLayoutState, upsertLayoutIndex]);
+
+  const saveLayout = useCallback(async () => {
+    const layoutData = getCurrentLayoutState().selectedLayout?.data;
+    if (!layoutData) {
+      return;
+    }
+
+    const rawName = prompt("Enter layout name");
+    if (!rawName) {
+      return;
+    }
+
+    const safeName = rawName.replace(/[^a-z0-9._-]/gi, "_");
+    const response = await fetch(`/layouts/${safeName}.json`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(layoutData),
+    });
+    if (!response.ok) {
+      throw new Error(`Failed to save layout: ${response.statusText}`);
+    }
+    await upsertLayoutIndex(safeName);
+    enqueueSnackbar("Layout saved", { variant: "success" });
+  }, [enqueueSnackbar, getCurrentLayoutState, upsertLayoutIndex]);
+
+  const fetchSavedLayouts = useCallback(async (): Promise<string[]> => {
+    const response = await fetch("/layouts/index.json");
+    if (!response.ok) {
+      return [];
+    }
+    const names = (await response.json()) as string[];
+    return names;
+  }, []);
+
+  const openSavedLayout = useCallback((name: string) => {
+    const url = updateAppURLState(new URL(window.location.href), { layout: name });
+    window.open(url.href, "_blank");
+  }, []);
 
   return useMemo(() => {
     return {
@@ -316,7 +420,20 @@ export function useWorkspaceActions(): WorkspaceActions {
       layoutActions: {
         importFromFile: importLayoutFromFile,
         exportToFile: exportLayoutToFile,
+        share: shareLayout,
+        save: saveLayout,
+        fetchSavedLayouts: fetchSavedLayouts,
+        openSaved: openSavedLayout,
       },
     };
-  }, [exportLayoutToFile, importLayoutFromFile, openFile, set]);
+  }, [
+    exportLayoutToFile,
+    importLayoutFromFile,
+    shareLayout,
+    saveLayout,
+    fetchSavedLayouts,
+    openSavedLayout,
+    openFile,
+    set,
+  ]);
 }
