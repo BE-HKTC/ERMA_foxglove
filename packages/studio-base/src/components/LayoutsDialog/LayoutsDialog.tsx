@@ -33,6 +33,7 @@ export default function LayoutsDialog({ open, onClose }: LayoutsDialogProps): JS
   const [name, setName] = useState("");
   const [target, setTarget] = useState("");
   const [layouts, setLayouts] = useState<SavedLayout[]>([]);
+  const [selected, setSelected] = useState<string | undefined>();
 
   useEffect(() => {
     if (open) {
@@ -61,7 +62,13 @@ export default function LayoutsDialog({ open, onClose }: LayoutsDialogProps): JS
           <TextField
             label={t("layoutName")}
             value={name}
-            onChange={(e) => setName(e.target.value)}
+            onChange={(e) => {
+              const value = e.target.value;
+              setName(value);
+              if (selected && value !== selected) {
+                setSelected(undefined);
+              }
+            }}
             fullWidth
           />
           <TextField
@@ -84,9 +91,11 @@ export default function LayoutsDialog({ open, onClose }: LayoutsDialogProps): JS
               <ListItem
                 key={layout.name}
                 disableGutters
+                selected={selected === layout.name}
                 onClick={() => {
                   setName(layout.name);
                   setTarget(layout.target ?? "");
+                  setSelected(layout.name);
                 }}
                 secondaryAction={
                   <Stack direction="row" spacing={1}>
@@ -110,6 +119,9 @@ export default function LayoutsDialog({ open, onClose }: LayoutsDialogProps): JS
                       onClick={async () => {
                         await layoutActions.delete(layout.name);
                         await refresh();
+                        if (selected === layout.name) {
+                          setSelected(undefined);
+                        }
                       }}
                     >
                       {t("deleteLayout")}
