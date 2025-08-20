@@ -52,11 +52,6 @@ export default function LayoutsDialog({ open, onClose }: LayoutsDialogProps): JS
     await refresh();
   };
 
-  const handleShare = async () => {
-    await layoutActions.share(name);
-    await refresh();
-  };
-
   return (
     <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
       <DialogTitle>{t("layouts")}</DialogTitle>
@@ -68,14 +63,9 @@ export default function LayoutsDialog({ open, onClose }: LayoutsDialogProps): JS
             onChange={(e) => setName(e.target.value)}
             fullWidth
           />
-          <Stack direction="row" spacing={1}>
-            <Button variant="contained" onClick={handleSave} disabled={!name}>
-              {t("saveLayout")}
-            </Button>
-            <Button variant="outlined" onClick={handleShare} disabled={!name}>
-              {t("shareLayout")}
-            </Button>
-          </Stack>
+          <Button variant="contained" onClick={handleSave} disabled={!name}>
+            {t("saveLayout")}
+          </Button>
           <Button onClick={() => layoutActions.importFromFile()}>
             {t("importLayoutFromFile")}
           </Button>
@@ -118,11 +108,14 @@ export default function LayoutsDialog({ open, onClose }: LayoutsDialogProps): JS
               >
                 <ListItemText
                   primary={layout.name}
-                  secondary={`${t("created")}: ${new Date(
-                    layout.createdAt,
-                  ).toLocaleString()} · ${t("updated")}: ${new Date(
-                    layout.updatedAt,
-                  ).toLocaleString()}`}
+                  secondary={
+                    <>
+                      {t("created")}: {new Date(layout.createdAt).toLocaleString()}
+                      <br />
+                      {t("updated")}: {new Date(layout.updatedAt).toLocaleString()}
+                    </>
+                  }
+                  secondaryTypographyProps={{ component: "div" }}
                 />
               </ListItem>
             ))}
