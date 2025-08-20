@@ -55,6 +55,9 @@ export function migrateV0WorkspaceState(
         initialTab: undefined,
         open: false,
       },
+      layouts: {
+        open: false,
+      },
     },
     featureTours: {
       active: undefined,

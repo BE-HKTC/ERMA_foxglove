@@ -6,6 +6,8 @@ import { Draft, produce } from "immer";
 import * as _ from "lodash-es";
 import { Dispatch, SetStateAction, useCallback, useMemo } from "react";
 import { useMountedState } from "react-use";
+import { useSnackbar } from "notistack";
+import Logger from "@foxglove/log";
 
 import { useGuaranteedContext } from "@foxglove/hooks";
 import { AppSettingsTab } from "@foxglove/studio-base/components/AppSettingsDialog/AppSettingsDialog";
@@ -23,6 +25,9 @@ import {
 import useCallbackWithToast from "@foxglove/studio-base/hooks/useCallbackWithToast";
 import { AppEvent } from "@foxglove/studio-base/services/IAnalytics";
 import { downloadTextFile } from "@foxglove/studio-base/util/download";
+import clipboard from "@foxglove/studio-base/util/clipboard";
+import { updateAppURLState } from "@foxglove/studio-base/util/appURLState";
+import showOpenFilePicker from "@foxglove/studio-base/util/showOpenFilePicker";
 
 import {
   LeftSidebarItemKey,
@@ -33,6 +38,15 @@ import {
   WorkspaceContextStore,
 } from "./WorkspaceContext";
 import { useOpenFile } from "./useOpenFile";
+
+const log = Logger.getLogger(__filename);
+
+export type SavedLayout = {
+  name: string;
+  createdAt: string;
+  updatedAt: string;
+  target?: string;
+};
 
 export type WorkspaceActions = {
   dialogActions: {
@@ -46,6 +60,10 @@ export type WorkspaceActions = {
     preferences: {
       close: () => void;
       open: (initialTab?: AppSettingsTab) => void;
+    };
+    layouts: {
+      open: () => void;
+      close: () => void;
     };
   };
 
@@ -80,6 +98,16 @@ export type WorkspaceActions = {
     // Export the current layout to a file
     // This will perform a browser download of the current layout to a file
     exportToFile: () => void;
+    // Upload the current layout to the server and copy a shareable URL
+    share: (name?: string, target?: string) => void;
+    // Save the current layout to the server without copying a URL
+    save: (name?: string, target?: string) => Promise<void>;
+    // Fetch saved layout metadata from the server
+    fetchSavedLayouts: () => Promise<SavedLayout[]>;
+    // Open a saved layout in a new browser tab
+    openSaved: (name: string) => void;
+    // Delete a saved layout on the server
+    delete: (name: string) => Promise<void>;
   };
 };
 
@@ -101,6 +129,7 @@ export function useWorkspaceActions(): WorkspaceActions {
 
   const analytics = useAnalytics();
   const appContext = useAppContext();
+  const { enqueueSnackbar } = useSnackbar();
 
   const isMounted = useMountedState();
 
@@ -116,6 +145,7 @@ export function useWorkspaceActions(): WorkspaceActions {
   );
 
   const importLayoutFromFile = useCallbackWithToast(async () => {
+    log.debug("importLayoutFromFile: opening file picker");
     const fileHandles = await showOpenFilePicker({
       multiple: false,
       excludeAcceptAllOption: false,
@@ -132,7 +162,13 @@ export function useWorkspaceActions(): WorkspaceActions {
       return;
     }
 
-    const file = await fileHandles[0].getFile();
+    const [fileHandle] = fileHandles;
+    if (!fileHandle) {
+      return;
+    }
+
+    log.debug("importLayoutFromFile: file selected", fileHandle.name);
+    const file = await fileHandle.getFile();
     const content = await file.text();
 
     if (!isMounted()) {
@@ -154,10 +190,12 @@ export function useWorkspaceActions(): WorkspaceActions {
 
     // If there's an app context handler for this we let it take over from here
     if (appContext.importLayoutFile) {
+      log.debug("importLayoutFromFile: delegating to app context");
       await appContext.importLayoutFile(file.name, data);
       return;
     }
 
+    log.debug("importLayoutFromFile: applying layout from file");
     setCurrentLayout({ data });
 
     void analytics.logEvent(AppEvent.LAYOUT_IMPORT);
@@ -173,9 +211,101 @@ export function useWorkspaceActions(): WorkspaceActions {
 
     const name = getCurrentLayoutState().selectedLayout?.name ?? "foxglove-layout";
     const content = JSON.stringify(layoutData, undefined, 2) ?? "";
+    log.debug("exportLayoutToFile: exporting layout", name);
     downloadTextFile(content, `${name}.json`);
     void analytics.logEvent(AppEvent.LAYOUT_EXPORT);
   }, [analytics, getCurrentLayoutState]);
+
+
+  const shareLayout = useCallbackWithToast(async (rawName?: string, targetName?: string) => {
+    const layoutData = getCurrentLayoutState().selectedLayout?.data;
+    if (!layoutData) {
+      return;
+    }
+
+    const baseName = rawName ?? getCurrentLayoutState().selectedLayout?.name ?? `layout-${Date.now()}`;
+    const safeName = baseName.replace(/[^a-z0-9._-]/gi, "_");
+    log.debug("shareLayout: uploading", safeName);
+    const response = await fetch(`/layouts/${safeName}.json`, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        ...(targetName ? { "X-Layout-Target": targetName } : {}),
+      },
+      body: JSON.stringify(layoutData),
+    });
+    if (!response.ok) {
+      log.error("shareLayout: upload failed", response.status, response.statusText);
+      throw new Error(`Failed to save layout: ${response.statusText}`);
+    }
+
+    const shareUrl = updateAppURLState(new URL(window.location.href), {
+      layout: safeName,
+    });
+    await clipboard.copy(shareUrl.href);
+    log.debug("shareLayout: copied URL", shareUrl.href);
+    enqueueSnackbar("Copied layout URL to clipboard", { variant: "success" });
+    void analytics.logEvent(AppEvent.LAYOUT_SHARE);
+  }, [analytics, enqueueSnackbar, getCurrentLayoutState]);
+
+  const saveLayout = useCallback(async (rawName?: string, targetName?: string) => {
+    const layoutData = getCurrentLayoutState().selectedLayout?.data;
+    if (!layoutData) {
+      return;
+    }
+
+    const baseName = rawName ?? prompt("Enter layout name");
+    if (!baseName) {
+      return;
+    }
+
+    const safeName = baseName.replace(/[^a-z0-9._-]/gi, "_");
+    log.debug("saveLayout: saving", safeName);
+    const response = await fetch(`/layouts/${safeName}.json`, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        ...(targetName ? { "X-Layout-Target": targetName } : {}),
+      },
+      body: JSON.stringify(layoutData),
+    });
+    if (!response.ok) {
+      log.error("saveLayout: upload failed", response.status, response.statusText);
+      throw new Error(`Failed to save layout: ${response.statusText}`);
+    }
+    enqueueSnackbar("Layout saved", { variant: "success" });
+  }, [enqueueSnackbar, getCurrentLayoutState]);
+
+  const fetchSavedLayouts = useCallback(async (): Promise<SavedLayout[]> => {
+    log.debug("fetchSavedLayouts: requesting index");
+    const response = await fetch("/layouts/index.json");
+    if (!response.ok) {
+      log.error("fetchSavedLayouts: request failed", response.status, response.statusText);
+      return [];
+    }
+    const layouts = (await response.json()) as SavedLayout[];
+    log.debug("fetchSavedLayouts: received", layouts);
+    return layouts;
+  }, []);
+
+  const deleteLayout = useCallback(
+    async (name: string) => {
+      log.debug("deleteLayout: deleting", name);
+      const response = await fetch(`/layouts/${name}.json`, { method: "DELETE" });
+      if (!response.ok) {
+        log.error("deleteLayout: failed", response.status, response.statusText);
+        throw new Error(`Failed to delete layout: ${response.statusText}`);
+      }
+      enqueueSnackbar("Layout deleted", { variant: "success" });
+    },
+    [enqueueSnackbar],
+  );
+
+  const openSavedLayout = useCallback((name: string) => {
+    log.debug("openSavedLayout: opening", name);
+    const url = updateAppURLState(new URL(window.location.href), { layout: name });
+    window.open(url.href, "_blank");
+  }, []);
 
   return useMemo(() => {
     return {
@@ -217,6 +347,19 @@ export function useWorkspaceActions(): WorkspaceActions {
           open: (initialTab?: AppSettingsTab) => {
             set((draft) => {
               draft.dialogs.preferences = { open: true, initialTab };
+            });
+          },
+        },
+
+        layouts: {
+          open: () => {
+            set((draft) => {
+              draft.dialogs.layouts.open = true;
+            });
+          },
+          close: () => {
+            set((draft) => {
+              draft.dialogs.layouts.open = false;
             });
           },
         },
@@ -316,7 +459,22 @@ export function useWorkspaceActions(): WorkspaceActions {
       layoutActions: {
         importFromFile: importLayoutFromFile,
         exportToFile: exportLayoutToFile,
+        share: shareLayout,
+        save: saveLayout,
+        fetchSavedLayouts: fetchSavedLayouts,
+        openSaved: openSavedLayout,
+        delete: deleteLayout,
       },
     };
-  }, [exportLayoutToFile, importLayoutFromFile, openFile, set]);
+  }, [
+    exportLayoutToFile,
+    importLayoutFromFile,
+    shareLayout,
+    saveLayout,
+    fetchSavedLayouts,
+    openSavedLayout,
+    deleteLayout,
+    openFile,
+    set,
+  ]);
 }

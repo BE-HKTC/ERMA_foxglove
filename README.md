@@ -138,6 +138,11 @@ sed -i 's/yarn install --immutable/yarn install --checksum-behavior=update/' Doc
 docker build -t erma-foxglove .
 docker run --rm -p 8084:8080 erma-foxglove
 
+# Or use docker compose to build and run
+docker compose up --build
+# Stop the stack
+docker compose down
+
 # Google Chrome (apt repo)
 sudo install -m 0755 -d /etc/apt/keyrings
 wget -qO- https://dl.google.com/linux/linux_signing_key.pub \

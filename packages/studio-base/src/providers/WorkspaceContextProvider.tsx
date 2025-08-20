@@ -28,6 +28,9 @@ export function makeWorkspaceContextInitialState(): WorkspaceContextStore {
         initialTab: undefined,
         open: false,
       },
+      layouts: {
+        open: false,
+      },
     },
     featureTours: {
       active: undefined,

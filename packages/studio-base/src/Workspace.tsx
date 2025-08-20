@@ -46,6 +46,7 @@ import VariablesList from "@foxglove/studio-base/components/VariablesList";
 import { WorkspaceDialogs } from "@foxglove/studio-base/components/WorkspaceDialogs";
 import { useAppContext } from "@foxglove/studio-base/context/AppContext";
 import { useCurrentUser } from "@foxglove/studio-base/context/BaseUserContext";
+import { LayoutData, useCurrentLayoutActions } from "@foxglove/studio-base/context/CurrentLayoutContext";
 import { EventsStore, useEvents } from "@foxglove/studio-base/context/EventsContext";
 import { useExtensionCatalog } from "@foxglove/studio-base/context/ExtensionCatalogContext";
 import { usePlayerSelection } from "@foxglove/studio-base/context/PlayerSelectionContext";
@@ -116,6 +117,7 @@ function WorkspaceContent(props: WorkspaceProps): JSX.Element {
   const { classes } = useStyles();
   const containerRef = useRef<HTMLDivElement>(ReactNull);
   const { availableSources, selectSource } = usePlayerSelection();
+  const { setCurrentLayout } = useCurrentLayoutActions();
   const playerPresence = useMessagePipeline(selectPlayerPresence);
   const playerProblems = useMessagePipeline(selectPlayerProblems);
 
@@ -364,6 +366,10 @@ function WorkspaceContent(props: WorkspaceProps): JSX.Element {
     targetUrlState ? { ds: targetUrlState.ds, dsParams: targetUrlState.dsParams } : undefined,
   );
 
+  const [unappliedLayout, setUnappliedLayout] = useState(
+    targetUrlState ? { layout: targetUrlState.layout } : undefined,
+  );
+
   const selectEvent = useEvents(selectSelectEvent);
   // Load data source from URL.
   useEffect(() => {
@@ -382,6 +388,32 @@ function WorkspaceContent(props: WorkspaceProps): JSX.Element {
       setUnappliedSourceArgs({ ds: undefined, dsParams: undefined });
     }
   }, [selectEvent, selectSource, unappliedSourceArgs, setUnappliedSourceArgs]);
+
+  // Load layout from URL.
+  useEffect(() => {
+    if (!unappliedLayout?.layout) {
+      return;
+    }
+
+    async function loadLayout(name: string) {
+      try {
+        log.debug("loadLayout: fetching", name);
+        const response = await fetch(`/layouts/${name}.json`);
+        if (!response.ok) {
+          throw new Error(`Failed to load layout ${name}`);
+        }
+        const data = (await response.json()) as LayoutData;
+        setCurrentLayout({ name, data });
+        log.debug("loadLayout: applied", name);
+      } catch (err) {
+        log.error(err);
+      } finally {
+        setUnappliedLayout({ layout: undefined });
+      }
+    }
+
+    void loadLayout(unappliedLayout.layout);
+  }, [unappliedLayout, setCurrentLayout]);
 
   const [unappliedTime, setUnappliedTime] = useState(
     targetUrlState ? { time: targetUrlState.time } : undefined,
@@ -498,6 +530,9 @@ export default function Workspace(props: WorkspaceProps): JSX.Element {
       },
       preferences: {
         initialTab: undefined,
+        open: false,
+      },
+      layouts: {
         open: false,
       },
     },

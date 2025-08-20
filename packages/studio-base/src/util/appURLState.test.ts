@@ -33,9 +33,11 @@ describe("app state url parser", () => {
       const url = urlBuilder();
       url.searchParams.append("ds", "ros1-remote-bagfile");
       url.searchParams.append("ds.url", "http://example.com");
+      url.searchParams.append("layout", "demo");
 
       expect(parseAppURLState(url)).toMatchObject({
         ds: "ros1-remote-bagfile",
+        layout: "demo",
         dsParams: {
           url: "http://example.com",
         },
@@ -55,11 +57,13 @@ describe("app state url parser", () => {
       url.searchParams.append("ds.start", start);
       url.searchParams.append("ds.end", end);
       url.searchParams.append("ds.eventId", "dummyEventId");
+      url.searchParams.append("layout", "test-layout");
 
       const parsed = parseAppURLState(url);
       expect(parsed).toMatchObject({
         ds: "foo",
         time: { sec: now.sec + 500, nsec: 0 },
+        layout: "test-layout",
         dsParams: { bar: "barValue", baz: "bazValue" },
       });
     });
@@ -77,9 +81,10 @@ describe("app state encoding", () => {
         dsParams: {
           url: "http://foxglove.dev/test.bag",
         },
+        layout: "foo",
       }).href,
     ).toEqual(
-      "http://example.com/?ds=ros1-remote-bagfile&ds.url=http%3A%2F%2Ffoxglove.dev%2Ftest.bag",
+      "http://example.com/?ds=ros1-remote-bagfile&ds.url=http%3A%2F%2Ffoxglove.dev%2Ftest.bag&layout=foo",
     );
   });
 
