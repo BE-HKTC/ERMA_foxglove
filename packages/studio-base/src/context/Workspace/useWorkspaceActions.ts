@@ -195,21 +195,19 @@ export function useWorkspaceActions(): WorkspaceActions {
       return;
     }
 
-    const name = getCurrentLayoutState().selectedLayout?.name ?? `layout-${Date.now()}`;
-    const response = await fetch(`/layouts`, {
-      method: "POST",
+    const rawName = getCurrentLayoutState().selectedLayout?.name ?? `layout-${Date.now()}`;
+    const safeName = rawName.replace(/[^a-z0-9._-]/gi, "_");
+    const response = await fetch(`/layouts/${safeName}.json`, {
+      method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name, data: layoutData }),
+      body: JSON.stringify(layoutData),
     });
     if (!response.ok) {
       throw new Error(`Failed to save layout: ${response.statusText}`);
     }
-    const { name: savedName = name } = await response
-      .json()
-      .catch(() => ({ name }));
 
     const shareUrl = updateAppURLState(new URL(window.location.href), {
-      layout: savedName,
+      layout: safeName,
     });
     await clipboard.copy(shareUrl.href);
     enqueueSnackbar("Copied layout URL to clipboard", { variant: "success" });
