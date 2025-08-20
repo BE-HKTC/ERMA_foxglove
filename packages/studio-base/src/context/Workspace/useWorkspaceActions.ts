@@ -86,6 +86,12 @@ export type WorkspaceActions = {
     exportToFile: () => void;
     // Upload the current layout to the server and copy a shareable URL
     share: () => void;
+    // Save the current layout to the server without copying a URL
+    save: () => Promise<void>;
+    // Fetch saved layout names from the server
+    fetchSavedLayouts: () => Promise<string[]>;
+    // Open a saved layout in a new browser tab
+    openSaved: (name: string) => void;
   };
 };
 
@@ -213,6 +219,43 @@ export function useWorkspaceActions(): WorkspaceActions {
     enqueueSnackbar("Copied layout URL to clipboard", { variant: "success" });
     void analytics.logEvent(AppEvent.LAYOUT_SHARE);
   }, [analytics, enqueueSnackbar, getCurrentLayoutState]);
+
+  const saveLayout = useCallback(async () => {
+    const layoutData = getCurrentLayoutState().selectedLayout?.data;
+    if (!layoutData) {
+      return;
+    }
+
+    const rawName = prompt("Enter layout name");
+    if (!rawName) {
+      return;
+    }
+
+    const safeName = rawName.replace(/[^a-z0-9._-]/gi, "_");
+    const response = await fetch(`/layouts/${safeName}.json`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(layoutData),
+    });
+    if (!response.ok) {
+      throw new Error(`Failed to save layout: ${response.statusText}`);
+    }
+    enqueueSnackbar("Layout saved", { variant: "success" });
+  }, [enqueueSnackbar, getCurrentLayoutState]);
+
+  const fetchSavedLayouts = useCallback(async (): Promise<string[]> => {
+    const response = await fetch("/layouts/index.json");
+    if (!response.ok) {
+      return [];
+    }
+    const names = (await response.json()) as string[];
+    return names;
+  }, []);
+
+  const openSavedLayout = useCallback((name: string) => {
+    const url = updateAppURLState(new URL(window.location.href), { layout: name });
+    window.open(url.href, "_blank");
+  }, []);
 
   return useMemo(() => {
     return {
@@ -354,7 +397,19 @@ export function useWorkspaceActions(): WorkspaceActions {
         importFromFile: importLayoutFromFile,
         exportToFile: exportLayoutToFile,
         share: shareLayout,
+        save: saveLayout,
+        fetchSavedLayouts: fetchSavedLayouts,
+        openSaved: openSavedLayout,
       },
     };
-  }, [exportLayoutToFile, importLayoutFromFile, shareLayout, openFile, set]);
+  }, [
+    exportLayoutToFile,
+    importLayoutFromFile,
+    shareLayout,
+    saveLayout,
+    fetchSavedLayouts,
+    openSavedLayout,
+    openFile,
+    set,
+  ]);
 }

@@ -27,6 +27,8 @@ export const appBar = {
   showLeftSidebar: "Show left sidebar",
   showRightSidebar: "Show right sidebar",
   shareLayout: "Share layout",
+  saveLayout: "Save layout",
+  savedLayouts: "Saved layouts",
   signIn: "Sign in",
   signOut: "Sign out",
   unknown: "unknown",

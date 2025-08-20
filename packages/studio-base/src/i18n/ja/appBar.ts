@@ -23,6 +23,8 @@ export const appBar: Partial<TypeOptions["resources"]["appBar"]> = {
   recentDataSources: "最近のデータソース",
   settings: "設定",
   shareLayout: "Share layout",
+  saveLayout: "レイアウトを保存",
+  savedLayouts: "保存されたレイアウト",
   signIn: "ログイン",
   signOut: "ログアウト",
   unknown: "不明",
