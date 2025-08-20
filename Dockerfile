@@ -14,7 +14,7 @@ FROM node:18-alpine
 WORKDIR /app
 
 COPY --from=build /src/web/.webpack ./public
-COPY --from=build /src/web/node_modules ./node_modules
+COPY --from=build /src/node_modules ./node_modules
 COPY web/server.mjs ./server.mjs
 
 EXPOSE 8080
