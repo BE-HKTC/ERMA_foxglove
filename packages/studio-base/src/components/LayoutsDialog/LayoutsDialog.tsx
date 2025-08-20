@@ -92,7 +92,7 @@ export default function LayoutsDialog({ open, onClose }: LayoutsDialogProps): JS
                   <Stack direction="row" spacing={1}>
                     <Button
                       size="small"
-                      onClick={() => layoutActions.openSaved(layout.name)}
+                      onClick={() => layoutActions.openSaved(layout.name, layout.target)}
                     >
                       {t("open")}
                     </Button>

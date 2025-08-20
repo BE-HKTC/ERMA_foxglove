@@ -105,7 +105,7 @@ export type WorkspaceActions = {
     // Fetch saved layout metadata from the server
     fetchSavedLayouts: () => Promise<SavedLayout[]>;
     // Open a saved layout in a new browser tab
-    openSaved: (name: string) => void;
+    openSaved: (name: string, target?: string) => void;
     // Delete a saved layout on the server
     delete: (name: string) => Promise<void>;
   };
@@ -301,9 +301,14 @@ export function useWorkspaceActions(): WorkspaceActions {
     [enqueueSnackbar],
   );
 
-  const openSavedLayout = useCallback((name: string) => {
-    log.debug("openSavedLayout: opening", name);
-    const url = updateAppURLState(new URL(window.location.href), { layout: name });
+  const openSavedLayout = useCallback((name: string, targetName?: string) => {
+    log.debug("openSavedLayout: opening", name, targetName);
+    const url = updateAppURLState(new URL(window.location.href), {
+      layout: name,
+      ...(targetName
+        ? { ds: "foxglove-websocket", dsParams: { url: targetName } }
+        : {}),
+    });
     window.open(url.href, "_blank");
   }, []);
 
