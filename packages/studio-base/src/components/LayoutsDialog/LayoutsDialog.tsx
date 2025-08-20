@@ -84,6 +84,10 @@ export default function LayoutsDialog({ open, onClose }: LayoutsDialogProps): JS
               <ListItem
                 key={layout.name}
                 disableGutters
+                onClick={() => {
+                  setName(layout.name);
+                  setTarget(layout.target ?? "");
+                }}
                 secondaryAction={
                   <Stack direction="row" spacing={1}>
                     <Button
@@ -95,7 +99,7 @@ export default function LayoutsDialog({ open, onClose }: LayoutsDialogProps): JS
                     <Button
                       size="small"
                       onClick={async () => {
-                        await layoutActions.save(layout.name, layout.target);
+                        await layoutActions.save(layout.name, target);
                         await refresh();
                       }}
                     >
