@@ -41,6 +41,12 @@ import { useOpenFile } from "./useOpenFile";
 
 const log = Logger.getLogger(__filename);
 
+export type SavedLayout = {
+  name: string;
+  createdAt: string;
+  updatedAt: string;
+};
+
 export type WorkspaceActions = {
   dialogActions: {
     dataSource: {
@@ -95,10 +101,12 @@ export type WorkspaceActions = {
     share: (name?: string) => void;
     // Save the current layout to the server without copying a URL
     save: (name?: string) => Promise<void>;
-    // Fetch saved layout names from the server
-    fetchSavedLayouts: () => Promise<string[]>;
+    // Fetch saved layout metadata from the server
+    fetchSavedLayouts: () => Promise<SavedLayout[]>;
     // Open a saved layout in a new browser tab
     openSaved: (name: string) => void;
+    // Delete a saved layout on the server
+    delete: (name: string) => Promise<void>;
   };
 };
 
@@ -207,29 +215,6 @@ export function useWorkspaceActions(): WorkspaceActions {
     void analytics.logEvent(AppEvent.LAYOUT_EXPORT);
   }, [analytics, getCurrentLayoutState]);
 
-  const upsertLayoutIndex = useCallback(async (name: string) => {
-    log.debug("upsertLayoutIndex: fetching existing index");
-    let names: string[] = [];
-    try {
-      const indexResponse = await fetch("/layouts/index.json");
-      if (indexResponse.ok) {
-        names = (await indexResponse.json()) as string[];
-      }
-    } catch (err) {
-      log.debug("upsertLayoutIndex: index fetch failed", err);
-      names = [];
-    }
-
-    if (!names.includes(name)) {
-      log.debug("upsertLayoutIndex: adding", name);
-      names.push(name);
-      await fetch("/layouts/index.json", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(names),
-      });
-    }
-  }, []);
 
   const shareLayout = useCallbackWithToast(async (rawName?: string) => {
     const layoutData = getCurrentLayoutState().selectedLayout?.data;
@@ -250,8 +235,6 @@ export function useWorkspaceActions(): WorkspaceActions {
       throw new Error(`Failed to save layout: ${response.statusText}`);
     }
 
-    await upsertLayoutIndex(safeName);
-
     const shareUrl = updateAppURLState(new URL(window.location.href), {
       layout: safeName,
     });
@@ -259,7 +242,7 @@ export function useWorkspaceActions(): WorkspaceActions {
     log.debug("shareLayout: copied URL", shareUrl.href);
     enqueueSnackbar("Copied layout URL to clipboard", { variant: "success" });
     void analytics.logEvent(AppEvent.LAYOUT_SHARE);
-  }, [analytics, enqueueSnackbar, getCurrentLayoutState, upsertLayoutIndex]);
+  }, [analytics, enqueueSnackbar, getCurrentLayoutState]);
 
   const saveLayout = useCallback(async (rawName?: string) => {
     const layoutData = getCurrentLayoutState().selectedLayout?.data;
@@ -283,21 +266,33 @@ export function useWorkspaceActions(): WorkspaceActions {
       log.error("saveLayout: upload failed", response.status, response.statusText);
       throw new Error(`Failed to save layout: ${response.statusText}`);
     }
-    await upsertLayoutIndex(safeName);
     enqueueSnackbar("Layout saved", { variant: "success" });
-  }, [enqueueSnackbar, getCurrentLayoutState, upsertLayoutIndex]);
+  }, [enqueueSnackbar, getCurrentLayoutState]);
 
-  const fetchSavedLayouts = useCallback(async (): Promise<string[]> => {
+  const fetchSavedLayouts = useCallback(async (): Promise<SavedLayout[]> => {
     log.debug("fetchSavedLayouts: requesting index");
     const response = await fetch("/layouts/index.json");
     if (!response.ok) {
       log.error("fetchSavedLayouts: request failed", response.status, response.statusText);
       return [];
     }
-    const names = (await response.json()) as string[];
-    log.debug("fetchSavedLayouts: received", names);
-    return names;
+    const layouts = (await response.json()) as SavedLayout[];
+    log.debug("fetchSavedLayouts: received", layouts);
+    return layouts;
   }, []);
+
+  const deleteLayout = useCallback(
+    async (name: string) => {
+      log.debug("deleteLayout: deleting", name);
+      const response = await fetch(`/layouts/${name}.json`, { method: "DELETE" });
+      if (!response.ok) {
+        log.error("deleteLayout: failed", response.status, response.statusText);
+        throw new Error(`Failed to delete layout: ${response.statusText}`);
+      }
+      enqueueSnackbar("Layout deleted", { variant: "success" });
+    },
+    [enqueueSnackbar],
+  );
 
   const openSavedLayout = useCallback((name: string) => {
     log.debug("openSavedLayout: opening", name);
@@ -461,6 +456,7 @@ export function useWorkspaceActions(): WorkspaceActions {
         save: saveLayout,
         fetchSavedLayouts: fetchSavedLayouts,
         openSaved: openSavedLayout,
+        delete: deleteLayout,
       },
     };
   }, [
@@ -470,6 +466,7 @@ export function useWorkspaceActions(): WorkspaceActions {
     saveLayout,
     fetchSavedLayouts,
     openSavedLayout,
+    deleteLayout,
     openFile,
     set,
   ]);
