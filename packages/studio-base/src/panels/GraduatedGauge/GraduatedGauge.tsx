@@ -5,6 +5,7 @@
 import * as _ from "lodash-es";
 import { useCallback, useEffect, useLayoutEffect, useReducer, useState } from "react";
 import { v4 as uuidv4 } from "uuid";
+import Logger from "@foxglove/log";
 
 import { parseMessagePath, MessagePath } from "@foxglove/message-path";
 import { MessageEvent, PanelExtensionContext, SettingsTreeAction } from "@foxglove/studio";
@@ -13,6 +14,8 @@ import { turboColorString } from "@foxglove/studio-base/util/colorUtils";
 
 import { settingsActionReducer, useSettingsTree } from "./settings";
 import type { Config } from "./types";
+
+const log = Logger.getLogger(__filename);
 
 type Props = {
   context: PanelExtensionContext;
@@ -182,6 +185,10 @@ export function GraduatedGauge({ context }: Props): JSX.Element {
     ...defaultConfig,
     ...(context.initialState as Partial<Config>),
   }));
+
+  useEffect(() => {
+    log.debug("GraduatedGauge: config updated", config);
+  }, [config]);
 
   const [state, dispatch] = useReducer(
     reducer,

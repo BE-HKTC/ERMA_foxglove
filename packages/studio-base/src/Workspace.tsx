@@ -397,12 +397,14 @@ function WorkspaceContent(props: WorkspaceProps): JSX.Element {
 
     async function loadLayout(name: string) {
       try {
+        log.debug("loadLayout: fetching", name);
         const response = await fetch(`/layouts/${name}.json`);
         if (!response.ok) {
           throw new Error(`Failed to load layout ${name}`);
         }
         const data = (await response.json()) as LayoutData;
         setCurrentLayout({ name, data });
+        log.debug("loadLayout: applied", name);
       } catch (err) {
         log.error(err);
       } finally {

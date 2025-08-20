@@ -30,4 +30,4 @@ exec "\$@"
 EOF
 
 ENTRYPOINT ["/bin/sh", "/entrypoint.sh"]
-CMD ["caddy", "file-server", "--listen", ":8080"]
+CMD ["caddy", "file-server", "--listen", ":8080", "--access-log"]

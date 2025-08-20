@@ -7,6 +7,7 @@ import * as _ from "lodash-es";
 import { Dispatch, SetStateAction, useCallback, useMemo } from "react";
 import { useMountedState } from "react-use";
 import { useSnackbar } from "notistack";
+import Logger from "@foxglove/log";
 
 import { useGuaranteedContext } from "@foxglove/hooks";
 import { AppSettingsTab } from "@foxglove/studio-base/components/AppSettingsDialog/AppSettingsDialog";
@@ -37,6 +38,8 @@ import {
   WorkspaceContextStore,
 } from "./WorkspaceContext";
 import { useOpenFile } from "./useOpenFile";
+
+const log = Logger.getLogger(__filename);
 
 export type WorkspaceActions = {
   dialogActions: {
@@ -129,6 +132,7 @@ export function useWorkspaceActions(): WorkspaceActions {
   );
 
   const importLayoutFromFile = useCallbackWithToast(async () => {
+    log.debug("importLayoutFromFile: opening file picker");
     const fileHandles = await showOpenFilePicker({
       multiple: false,
       excludeAcceptAllOption: false,
@@ -150,6 +154,7 @@ export function useWorkspaceActions(): WorkspaceActions {
       return;
     }
 
+    log.debug("importLayoutFromFile: file selected", fileHandle.name);
     const file = await fileHandle.getFile();
     const content = await file.text();
 
@@ -172,10 +177,12 @@ export function useWorkspaceActions(): WorkspaceActions {
 
     // If there's an app context handler for this we let it take over from here
     if (appContext.importLayoutFile) {
+      log.debug("importLayoutFromFile: delegating to app context");
       await appContext.importLayoutFile(file.name, data);
       return;
     }
 
+    log.debug("importLayoutFromFile: applying layout from file");
     setCurrentLayout({ data });
 
     void analytics.logEvent(AppEvent.LAYOUT_IMPORT);
@@ -191,22 +198,26 @@ export function useWorkspaceActions(): WorkspaceActions {
 
     const name = getCurrentLayoutState().selectedLayout?.name ?? "foxglove-layout";
     const content = JSON.stringify(layoutData, undefined, 2) ?? "";
+    log.debug("exportLayoutToFile: exporting layout", name);
     downloadTextFile(content, `${name}.json`);
     void analytics.logEvent(AppEvent.LAYOUT_EXPORT);
   }, [analytics, getCurrentLayoutState]);
 
   const upsertLayoutIndex = useCallback(async (name: string) => {
+    log.debug("upsertLayoutIndex: fetching existing index");
     let names: string[] = [];
     try {
       const indexResponse = await fetch("/layouts/index.json");
       if (indexResponse.ok) {
         names = (await indexResponse.json()) as string[];
       }
-    } catch {
+    } catch (err) {
+      log.debug("upsertLayoutIndex: index fetch failed", err);
       names = [];
     }
 
     if (!names.includes(name)) {
+      log.debug("upsertLayoutIndex: adding", name);
       names.push(name);
       await fetch("/layouts/index.json", {
         method: "PUT",
@@ -224,12 +235,14 @@ export function useWorkspaceActions(): WorkspaceActions {
 
     const rawName = getCurrentLayoutState().selectedLayout?.name ?? `layout-${Date.now()}`;
     const safeName = rawName.replace(/[^a-z0-9._-]/gi, "_");
+    log.debug("shareLayout: uploading", safeName);
     const response = await fetch(`/layouts/${safeName}.json`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(layoutData),
     });
     if (!response.ok) {
+      log.error("shareLayout: upload failed", response.status, response.statusText);
       throw new Error(`Failed to save layout: ${response.statusText}`);
     }
 
@@ -239,6 +252,7 @@ export function useWorkspaceActions(): WorkspaceActions {
       layout: safeName,
     });
     await clipboard.copy(shareUrl.href);
+    log.debug("shareLayout: copied URL", shareUrl.href);
     enqueueSnackbar("Copied layout URL to clipboard", { variant: "success" });
     void analytics.logEvent(AppEvent.LAYOUT_SHARE);
   }, [analytics, enqueueSnackbar, getCurrentLayoutState, upsertLayoutIndex]);
@@ -255,12 +269,14 @@ export function useWorkspaceActions(): WorkspaceActions {
     }
 
     const safeName = rawName.replace(/[^a-z0-9._-]/gi, "_");
+    log.debug("saveLayout: saving", safeName);
     const response = await fetch(`/layouts/${safeName}.json`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(layoutData),
     });
     if (!response.ok) {
+      log.error("saveLayout: upload failed", response.status, response.statusText);
       throw new Error(`Failed to save layout: ${response.statusText}`);
     }
     await upsertLayoutIndex(safeName);
@@ -268,15 +284,19 @@ export function useWorkspaceActions(): WorkspaceActions {
   }, [enqueueSnackbar, getCurrentLayoutState, upsertLayoutIndex]);
 
   const fetchSavedLayouts = useCallback(async (): Promise<string[]> => {
+    log.debug("fetchSavedLayouts: requesting index");
     const response = await fetch("/layouts/index.json");
     if (!response.ok) {
+      log.error("fetchSavedLayouts: request failed", response.status, response.statusText);
       return [];
     }
     const names = (await response.json()) as string[];
+    log.debug("fetchSavedLayouts: received", names);
     return names;
   }, []);
 
   const openSavedLayout = useCallback((name: string) => {
+    log.debug("openSavedLayout: opening", name);
     const url = updateAppURLState(new URL(window.location.href), { layout: name });
     window.open(url.href, "_blank");
   }, []);
