@@ -11,6 +11,8 @@ export const panels = {
   dataSourceInfoDescription: "View details like topics and timestamps for the current data source.",
   gauge: "Gauge",
   gaugeDescription: "Display a colored gauge based on a continuous value.",
+  graduatedGauge: "Graduated Gauge",
+  graduatedGaugeDescription: "Display a colored gauge with tick marks.",
   image: "Image",
   imageDescription: "Display annotated images.",
   indicator: "Indicator",

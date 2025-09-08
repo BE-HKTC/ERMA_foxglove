@@ -51,7 +51,8 @@ export function AppMenu(props: AppMenuProps): JSX.Element {
 
   const leftSidebarOpen = useWorkspaceStore(selectLeftSidebarOpen);
   const rightSidebarOpen = useWorkspaceStore(selectRightSidebarOpen);
-  const { sidebarActions, dialogActions, layoutActions } = useWorkspaceActions();
+  const { sidebarActions, dialogActions } = useWorkspaceActions();
+
 
   const handleNestedMenuClose = useCallback(() => {
     setNestedMenu(undefined);
@@ -149,26 +150,17 @@ export function AppMenu(props: AppMenuProps): JSX.Element {
       },
       {
         type: "item",
-        label: t("importLayoutFromFile"),
-        key: "import-layout",
+        label: t("layouts"),
+        key: "layouts",
         onClick: () => {
-          layoutActions.importFromFile();
-          handleNestedMenuClose();
-        },
-      },
-      {
-        type: "item",
-        label: t("exportLayoutToFile"),
-        key: "export-layout",
-        onClick: () => {
-          layoutActions.exportToFile();
+          dialogActions.layouts.open();
           handleNestedMenuClose();
         },
       },
     ],
     [
+      dialogActions.layouts,
       handleNestedMenuClose,
-      layoutActions,
       leftSidebarOpen,
       rightSidebarOpen,
       sidebarActions.left,

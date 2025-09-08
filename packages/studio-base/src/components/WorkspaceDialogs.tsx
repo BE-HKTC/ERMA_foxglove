@@ -3,6 +3,7 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 import { AppSettingsDialog } from "@foxglove/studio-base/components/AppSettingsDialog";
+import { LayoutsDialog } from "@foxglove/studio-base/components/LayoutsDialog";
 import {
   useWorkspaceStore,
   WorkspaceContextStore,
@@ -12,12 +13,14 @@ import { useWorkspaceActions } from "../context/Workspace/useWorkspaceActions";
 
 const selectWorkspacePrefsDialogOpen = (store: WorkspaceContextStore) =>
   store.dialogs.preferences.open;
+const selectLayoutsDialogOpen = (store: WorkspaceContextStore) => store.dialogs.layouts.open;
 
 /**
  * Encapsulates dialogs shown and controlled at workspace level.
  */
 export function WorkspaceDialogs(): JSX.Element {
   const prefsDialogOpen = useWorkspaceStore(selectWorkspacePrefsDialogOpen);
+  const layoutsDialogOpen = useWorkspaceStore(selectLayoutsDialogOpen);
   const { dialogActions } = useWorkspaceActions();
 
   return (
@@ -29,6 +32,12 @@ export function WorkspaceDialogs(): JSX.Element {
           onClose={() => {
             dialogActions.preferences.close();
           }}
+        />
+      )}
+      {layoutsDialogOpen && (
+        <LayoutsDialog
+          open
+          onClose={() => dialogActions.layouts.close()}
         />
       )}
     </>
