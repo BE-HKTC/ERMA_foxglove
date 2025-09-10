@@ -81,6 +81,8 @@ export class PlotCoordinator extends EventEmitter<EventTypes> {
 
   #isTimeseriesPlot: boolean = false;
   #currentSeconds?: number;
+  #absoluteBaseSec?: number;
+  #useAbsoluteTime?: boolean;
 
   #viewport: Viewport = {
     size: { width: 0, height: 0 },
@@ -124,6 +126,12 @@ export class PlotCoordinator extends EventEmitter<EventTypes> {
     if (this.#isTimeseriesPlot) {
       const secondsSinceStart = toSec(subtractTime(currentTime, startTime));
       this.#currentSeconds = secondsSinceStart;
+      // Record absolute epoch base if available
+      // Use startTime as base if it appears absolute (sec > ~20 years)
+      // Otherwise clear base to fall back to relative seconds
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const isAbs = startTime.sec > 20 * 365 * 24 * 60 * 60;
+      this.#absoluteBaseSec = isAbs ? startTime.sec + startTime.nsec / 1e9 : undefined;
     }
 
     if (lastSeekTime !== this.#lastSeekTime) {
@@ -192,6 +200,7 @@ export class PlotCoordinator extends EventEmitter<EventTypes> {
       return;
     }
     this.#isTimeseriesPlot = config.xAxisVal === "timestamp";
+    this.#useAbsoluteTime = (config.xAxisAbsoluteTime ?? true) && this.#isTimeseriesPlot;
     if (!this.#isTimeseriesPlot) {
       this.#currentSeconds = undefined;
     }
@@ -417,6 +426,10 @@ export class PlotCoordinator extends EventEmitter<EventTypes> {
       return;
     }
     this.#updateAction.xBounds = this.#getXBounds();
+    this.#updateAction.xAxisAbsoluteBaseSec =
+      this.#useAbsoluteTime && this.#absoluteBaseSec != undefined
+        ? this.#absoluteBaseSec
+        : undefined;
 
     if (this.#shouldResetY) {
       const yMin = this.#interactionBounds?.y.min ?? this.#configBounds.y.min;

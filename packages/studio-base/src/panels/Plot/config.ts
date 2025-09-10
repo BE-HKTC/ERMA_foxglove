@@ -76,6 +76,9 @@ export type PlotConfig = DeprecatedPlotConfig & {
   paths: PlotPath[];
   minXValue?: number;
   maxXValue?: number;
+  // When xAxisVal is "timestamp": if true, show absolute wall-clock time on X axis.
+  // Defaults to true. Falls back to relative seconds when base time is not absolute.
+  xAxisAbsoluteTime?: boolean;
   minYValue?: string | number;
   maxYValue?: string | number;
   showLegend: boolean;

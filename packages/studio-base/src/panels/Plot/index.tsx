@@ -27,6 +27,7 @@ const defaultConfig: PlotConfig = {
   showPlotValuesInLegend: false,
   isSynced: true,
   xAxisVal: "timestamp",
+  xAxisAbsoluteTime: true,
   sidebarDimension: defaultSidebarDimension,
 };
 

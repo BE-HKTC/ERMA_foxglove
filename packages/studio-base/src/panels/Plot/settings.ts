@@ -193,6 +193,13 @@ function buildSettingsTree(config: PlotConfig, t: TFunction<"plot">): SettingsTr
             { label: t("accumulatedPath"), value: "custom" },
           ],
         },
+        ...(config.xAxisVal === "timestamp" && {
+          xAxisAbsoluteTime: {
+            label: t("absoluteTime"),
+            input: "boolean",
+            value: config.xAxisAbsoluteTime ?? true,
+          },
+        }),
         xAxisPath:
           config.xAxisVal === "currentCustom" || config.xAxisVal === "custom"
             ? {
@@ -269,6 +276,11 @@ export function usePlotPanelSettings(
                 draft.maxXValue = undefined;
               } else if (path[1] === "minXValue" || path[1] === "maxXValue") {
                 draft.followingViewWidth = undefined;
+              }
+
+              // Default to absolute time for timestamp mode if unset
+              if (path[1] === "xAxisVal" && value === "timestamp") {
+                draft.xAxisAbsoluteTime ??= true;
               }
             }
           }),

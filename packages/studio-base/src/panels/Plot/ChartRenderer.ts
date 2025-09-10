@@ -70,6 +70,9 @@ export type UpdateAction = {
   zoomMode?: "x" | "y" | "xy";
   referenceLines?: { color: string; value: number }[];
   interactionEvents?: InteractionEvent[];
+  // When provided, formats the X-axis as absolute wall time based on this base epoch seconds
+  // (i.e., show HH:MM:SS). When undefined, shows seconds.
+  xAxisAbsoluteBaseSec?: number;
 };
 
 function addEventListener(emitter: EventEmitter) {
@@ -271,6 +274,29 @@ export class ChartRenderer {
       const ticksOptions = this.#chartInstance.options.scales?.x?.ticks;
       if (ticksOptions) {
         ticksOptions.display = action.showXAxisLabels;
+      }
+    }
+
+    // Update X-axis tick formatter for absolute time if base is provided
+    if (action.xAxisAbsoluteBaseSec != undefined) {
+      const baseMs = action.xAxisAbsoluteBaseSec * 1000;
+      const ticksOptions = this.#chartInstance.options.scales?.x?.ticks;
+      if (ticksOptions) {
+        ticksOptions.callback = (val) => {
+          const t = Number(val);
+          if (!isFinite(t)) {
+            return String(val);
+          }
+          const date = new Date(baseMs + t * 1000);
+          // Format as HH:MM:SS (24h)
+          return date.toLocaleTimeString([], { hour12: false });
+        };
+      }
+    } else {
+      const ticksOptions = this.#chartInstance.options.scales?.x?.ticks;
+      if (ticksOptions && ticksOptions.callback) {
+        // restore default behavior
+        ticksOptions.callback = undefined as unknown as never;
       }
     }
 
