@@ -27,6 +27,7 @@ export const appBar: Partial<TypeOptions["resources"]["appBar"]> = {
   savedLayouts: "保存されたレイアウト",
   layouts: "Layouts…",
   layoutName: "Layout name",
+  layoutTarget: "Target",
   updateLayout: "Update layout",
   deleteLayout: "Delete layout",
   created: "Created",

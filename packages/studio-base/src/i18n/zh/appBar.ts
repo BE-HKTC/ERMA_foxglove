@@ -31,6 +31,7 @@ export const appBar: Partial<TypeOptions["resources"]["appBar"]> = {
   savedLayouts: "已保存的布局",
   layouts: "Layouts…",
   layoutName: "Layout name",
+  layoutTarget: "Target",
   updateLayout: "Update layout",
   deleteLayout: "Delete layout",
   created: "Created",

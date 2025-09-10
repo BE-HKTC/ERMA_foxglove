@@ -62,7 +62,7 @@ import useElectronFilesToOpen from "@foxglove/studio-base/hooks/useElectronFiles
 import { PlayerPresence } from "@foxglove/studio-base/players/types";
 import { PanelStateContextProvider } from "@foxglove/studio-base/providers/PanelStateContextProvider";
 import WorkspaceContextProvider from "@foxglove/studio-base/providers/WorkspaceContextProvider";
-import { parseAppURLState } from "@foxglove/studio-base/util/appURLState";
+import { parseAppURLState, updateAppURLState } from "@foxglove/studio-base/util/appURLState";
 
 import { useWorkspaceActions } from "./context/Workspace/useWorkspaceActions";
 
@@ -405,6 +405,29 @@ function WorkspaceContent(props: WorkspaceProps): JSX.Element {
         const data = (await response.json()) as LayoutData;
         setCurrentLayout({ name, data });
         log.debug("loadLayout: applied", name);
+
+        try {
+          const indexRes = await fetch("/layouts/index.json");
+          if (indexRes.ok) {
+            const items = (await indexRes.json()) as { name: string; target?: string }[];
+            const meta = items.find((item) => item.name === name);
+            if (meta?.target) {
+              log.debug("loadLayout: applying target", meta.target);
+              setUnappliedSourceArgs({
+                ds: "foxglove-websocket",
+                dsParams: { url: meta.target },
+              });
+              const newUrl = updateAppURLState(new URL(window.location.href), {
+                ds: "foxglove-websocket",
+                dsParams: { url: meta.target },
+              });
+              window.history.replaceState(null, "", newUrl);
+            }
+          }
+        } catch (err) {
+          log.error(err);
+        }
+
       } catch (err) {
         log.error(err);
       } finally {
@@ -413,7 +436,8 @@ function WorkspaceContent(props: WorkspaceProps): JSX.Element {
     }
 
     void loadLayout(unappliedLayout.layout);
-  }, [unappliedLayout, setCurrentLayout]);
+  }, [unappliedLayout, setCurrentLayout, setUnappliedSourceArgs]);
+
 
   const [unappliedTime, setUnappliedTime] = useState(
     targetUrlState ? { time: targetUrlState.time } : undefined,

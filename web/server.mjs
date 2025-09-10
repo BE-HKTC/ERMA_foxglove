@@ -72,10 +72,19 @@ const server = http.createServer(async (req, res) => {
             const now = new Date().toISOString();
             const index = await readIndex();
             const existing = index.find((item) => item.name === name);
+            const targetName = req.headers['x-layout-target'];
             if (existing) {
               existing.updatedAt = now;
+              if (typeof targetName === 'string') {
+                existing.target = targetName;
+              }
             } else {
-              index.push({ name, createdAt: now, updatedAt: now });
+              index.push({
+                name,
+                target: typeof targetName === 'string' ? targetName : undefined,
+                createdAt: now,
+                updatedAt: now,
+              });
             }
             await writeIndex(index);
           }

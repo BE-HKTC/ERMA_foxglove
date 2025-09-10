@@ -31,7 +31,9 @@ export default function LayoutsDialog({ open, onClose }: LayoutsDialogProps): JS
   const { t } = useTranslation("appBar");
   const { layoutActions } = useWorkspaceActions();
   const [name, setName] = useState("");
+  const [target, setTarget] = useState("");
   const [layouts, setLayouts] = useState<SavedLayout[]>([]);
+  const [selected, setSelected] = useState<string | undefined>();
 
   useEffect(() => {
     if (open) {
@@ -48,7 +50,8 @@ export default function LayoutsDialog({ open, onClose }: LayoutsDialogProps): JS
   };
 
   const handleSave = async () => {
-    await layoutActions.save(name);
+    await layoutActions.save(name, target);
+
     await refresh();
   };
 
@@ -60,7 +63,20 @@ export default function LayoutsDialog({ open, onClose }: LayoutsDialogProps): JS
           <TextField
             label={t("layoutName")}
             value={name}
-            onChange={(e) => setName(e.target.value)}
+            onChange={(e) => {
+              const value = e.target.value;
+              setName(value);
+              if (selected && value !== selected) {
+                setSelected(undefined);
+              }
+            }}
+            fullWidth
+          />
+          <TextField
+            label={t("layoutTarget")}
+            value={target}
+            onChange={(e) => setTarget(e.target.value)}
+
             fullWidth
           />
           <Button variant="contained" onClick={handleSave} disabled={!name}>
@@ -77,18 +93,24 @@ export default function LayoutsDialog({ open, onClose }: LayoutsDialogProps): JS
               <ListItem
                 key={layout.name}
                 disableGutters
+                selected={selected === layout.name}
+                onClick={() => {
+                  setName(layout.name);
+                  setTarget(layout.target ?? "");
+                  setSelected(layout.name);
+                }}
                 secondaryAction={
                   <Stack direction="row" spacing={1}>
                     <Button
                       size="small"
-                      onClick={() => layoutActions.openSaved(layout.name)}
+                      onClick={() => layoutActions.openSaved(layout.name, layout.target)}
                     >
                       {t("open")}
                     </Button>
                     <Button
                       size="small"
                       onClick={async () => {
-                        await layoutActions.save(layout.name);
+                        await layoutActions.save(layout.name, target);
                         await refresh();
                       }}
                     >
@@ -99,6 +121,9 @@ export default function LayoutsDialog({ open, onClose }: LayoutsDialogProps): JS
                       onClick={async () => {
                         await layoutActions.delete(layout.name);
                         await refresh();
+                        if (selected === layout.name) {
+                          setSelected(undefined);
+                        }
                       }}
                     >
                       {t("deleteLayout")}
@@ -110,6 +135,12 @@ export default function LayoutsDialog({ open, onClose }: LayoutsDialogProps): JS
                   primary={layout.name}
                   secondary={
                     <>
+                      {layout.target && (
+                        <>
+                          {t("layoutTarget")}: {layout.target}
+                          <br />
+                        </>
+                      )}
                       {t("created")}: {new Date(layout.createdAt).toLocaleString()}
                       <br />
                       {t("updated")}: {new Date(layout.updatedAt).toLocaleString()}

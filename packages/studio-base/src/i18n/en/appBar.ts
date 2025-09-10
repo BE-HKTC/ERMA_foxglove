@@ -31,6 +31,7 @@ export const appBar = {
   savedLayouts: "Saved layouts",
   layouts: "Layouts…",
   layoutName: "Layout name",
+  layoutTarget: "Target",
   updateLayout: "Update",
   deleteLayout: "Delete",
   created: "Created",
