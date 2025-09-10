@@ -274,10 +274,14 @@ export function GraduatedGauge({ context }: Props): JSX.Element {
       ? Number(state.latestMatchingQueriedData)
       : NaN;
 
-  const { minValue, maxValue } = config;
-  const scaledValue =
-    (Math.max(minValue, Math.min(rawValue, maxValue)) - minValue) / (maxValue - minValue);
-  const outOfBounds = rawValue < minValue || rawValue > maxValue;
+  // Sanitize numeric inputs to avoid NaN/invalid math when fields are cleared
+  const safeMin = Number.isFinite(config.minValue) ? (config.minValue as number) : 0;
+  const safeMax = Number.isFinite(config.maxValue)
+    ? Math.max(config.maxValue as number, safeMin + 1e-6)
+    : safeMin + 1;
+  const clampedValue = Math.max(safeMin, Math.min(rawValue, safeMax));
+  const scaledValue = (clampedValue - safeMin) / Math.max(1e-6, safeMax - safeMin);
+  const outOfBounds = rawValue < safeMin || rawValue > safeMax;
 
   const padding = 0.1;
   const centerX = 0.5 + padding;
@@ -293,7 +297,8 @@ export function GraduatedGauge({ context }: Props): JSX.Element {
     ) + padding;
   const needleThickness = 8;
   const needleExtraLength = 0.05;
-  const numTicks = Math.max(1, config.graduationScale);
+  const gradRaw = Number((config as { graduationScale?: unknown }).graduationScale);
+  const numTicks = Math.max(1, Number.isFinite(gradRaw) ? Math.floor(gradRaw) : 10);
   const labelRadius = radius + 0.08;
   const startAngle = Math.PI - gaugeAngle;
   const endAngle = gaugeAngle;
@@ -301,7 +306,7 @@ export function GraduatedGauge({ context }: Props): JSX.Element {
   const ticks = config.showGraduations
     ? new Array(numTicks + 1).fill(undefined).map((_x, i) => {
         const angle = startAngle - (i / numTicks) * angleRange;
-        const value = minValue + (i / numTicks) * (maxValue - minValue);
+        const value = safeMin + (i / numTicks) * (safeMax - safeMin);
         return {
           x1: centerX + innerRadius * Math.cos(angle),
           y1: centerY - innerRadius * Math.sin(angle),

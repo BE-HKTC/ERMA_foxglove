@@ -524,14 +524,19 @@ export class CameraStateSettings extends SceneExtension implements ICameraHandle
 
     // Convert the camera spherical coordinates (phi, theta) to a quaternion rotation
     this.#perspectiveCamera.quaternion.setFromEuler(tempEuler.set(phi, 0, theta, "ZYX"));
-    this.#perspectiveCamera.fov = cameraState.fovy;
-    this.#perspectiveCamera.near = cameraState.near;
-    this.#perspectiveCamera.far = cameraState.far;
+    const safeFov = Number.isFinite(cameraState.fovy) ? cameraState.fovy : DEFAULT_CAMERA_STATE.fovy;
+    const safeNear = Math.max(1e-4, Number.isFinite(cameraState.near) ? cameraState.near : 0.1);
+    const safeFarRaw = Number.isFinite(cameraState.far) ? cameraState.far : 1e5;
+    const safeFar = Math.max(safeNear + 1e-3, safeFarRaw);
+    this.#perspectiveCamera.fov = safeFov;
+    this.#perspectiveCamera.near = safeNear;
+    this.#perspectiveCamera.far = safeFar;
     this.#perspectiveCamera.aspect = this.#aspect;
     this.#perspectiveCamera.updateProjectionMatrix();
 
     this.#controls.target.copy(targetOffset);
 
+    const safeDistance = Math.max(1e-4, Number.isFinite(cameraState.distance) ? cameraState.distance : DEFAULT_CAMERA_STATE.distance);
     if (cameraState.perspective) {
       // Unlock the polar angle (pitch axis)
       this.#controls.minPolarAngle = 0;
@@ -541,14 +546,14 @@ export class CameraStateSettings extends SceneExtension implements ICameraHandle
       const curPolarAngle = THREE.MathUtils.degToRad(config.cameraState.phi);
       this.#controls.minPolarAngle = this.#controls.maxPolarAngle = curPolarAngle;
 
-      this.#orthographicCamera.position.set(targetOffset.x, targetOffset.y, cameraState.far / 2);
+      this.#orthographicCamera.position.set(targetOffset.x, targetOffset.y, (safeNear + safeFar) / 2);
       this.#orthographicCamera.quaternion.setFromAxisAngle(UNIT_Z, theta);
-      this.#orthographicCamera.left = (-cameraState.distance / 2) * this.#aspect;
-      this.#orthographicCamera.right = (cameraState.distance / 2) * this.#aspect;
-      this.#orthographicCamera.top = cameraState.distance / 2;
-      this.#orthographicCamera.bottom = -cameraState.distance / 2;
-      this.#orthographicCamera.near = cameraState.near;
-      this.#orthographicCamera.far = cameraState.far;
+      this.#orthographicCamera.left = (-safeDistance / 2) * this.#aspect;
+      this.#orthographicCamera.right = (safeDistance / 2) * this.#aspect;
+      this.#orthographicCamera.top = safeDistance / 2;
+      this.#orthographicCamera.bottom = -safeDistance / 2;
+      this.#orthographicCamera.near = safeNear;
+      this.#orthographicCamera.far = safeFar;
       this.#orthographicCamera.updateProjectionMatrix();
     }
   }
