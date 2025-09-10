@@ -36,6 +36,8 @@ export default class FoxgloveWebSocketDataSourceFactory implements IDataSourceFa
       {
         id: "url",
         label: "WebSocket URL",
+        description: "Format: ws://host:port (e.g. ws://10.2.0.100:8765)",
+        placeholder: "ws://10.2.0.100:8765",
         defaultValue: "ws://localhost:8765",
         validate: (newValue: string): Error | undefined => {
           try {
@@ -45,7 +47,11 @@ export default class FoxgloveWebSocketDataSourceFactory implements IDataSourceFa
             }
             return undefined;
           } catch (err) {
-            return new Error("Enter a valid url");
+            // Provide a clearer hint when the scheme is missing
+            if (/^[^:]+:\/\//.test(newValue) === false) {
+              return new Error("Enter a valid WebSocket URL including scheme, e.g. ws://host:8765");
+            }
+            return new Error("Enter a valid WebSocket URL");
           }
         },
       },

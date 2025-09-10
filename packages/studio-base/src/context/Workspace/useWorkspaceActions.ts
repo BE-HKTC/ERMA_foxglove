@@ -106,6 +106,7 @@ export type WorkspaceActions = {
     fetchSavedLayouts: () => Promise<SavedLayout[]>;
     // Open a saved layout in a new browser tab
     openSaved: (name: string, target?: string) => void;
+
     // Delete a saved layout on the server
     delete: (name: string) => Promise<void>;
   };
@@ -168,6 +169,7 @@ export function useWorkspaceActions(): WorkspaceActions {
     }
 
     log.debug("importLayoutFromFile: file selected", fileHandle.name);
+
     const file = await fileHandle.getFile();
     const content = await file.text();
 
@@ -218,6 +220,7 @@ export function useWorkspaceActions(): WorkspaceActions {
 
 
   const shareLayout = useCallbackWithToast(async (rawName?: string, targetName?: string) => {
+
     const layoutData = getCurrentLayoutState().selectedLayout?.data;
     if (!layoutData) {
       return;
@@ -232,6 +235,7 @@ export function useWorkspaceActions(): WorkspaceActions {
         "Content-Type": "application/json",
         ...(targetName ? { "X-Layout-Target": targetName } : {}),
       },
+
       body: JSON.stringify(layoutData),
     });
     if (!response.ok) {
@@ -267,6 +271,7 @@ export function useWorkspaceActions(): WorkspaceActions {
         "Content-Type": "application/json",
         ...(targetName ? { "X-Layout-Target": targetName } : {}),
       },
+
       body: JSON.stringify(layoutData),
     });
     if (!response.ok) {
@@ -309,6 +314,7 @@ export function useWorkspaceActions(): WorkspaceActions {
         ? { ds: "foxglove-websocket", dsParams: { url: targetName } }
         : {}),
     });
+
     window.open(url.href, "_blank");
   }, []);
 

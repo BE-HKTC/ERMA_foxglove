@@ -51,6 +51,7 @@ export default function LayoutsDialog({ open, onClose }: LayoutsDialogProps): JS
 
   const handleSave = async () => {
     await layoutActions.save(name, target);
+
     await refresh();
   };
 
@@ -75,6 +76,7 @@ export default function LayoutsDialog({ open, onClose }: LayoutsDialogProps): JS
             label={t("layoutTarget")}
             value={target}
             onChange={(e) => setTarget(e.target.value)}
+
             fullWidth
           />
           <Button variant="contained" onClick={handleSave} disabled={!name}>

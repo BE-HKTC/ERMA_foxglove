@@ -427,6 +427,7 @@ function WorkspaceContent(props: WorkspaceProps): JSX.Element {
         } catch (err) {
           log.error(err);
         }
+
       } catch (err) {
         log.error(err);
       } finally {
@@ -436,6 +437,7 @@ function WorkspaceContent(props: WorkspaceProps): JSX.Element {
 
     void loadLayout(unappliedLayout.layout);
   }, [unappliedLayout, setCurrentLayout, setUnappliedSourceArgs]);
+
 
   const [unappliedTime, setUnappliedTime] = useState(
     targetUrlState ? { time: targetUrlState.time } : undefined,
