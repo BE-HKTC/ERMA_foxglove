@@ -17,6 +17,8 @@ export type Config = {
   topicColors: Record<string, string>;
   zoomLevel?: number;
   maxNativeZoom?: number;
+  pinSize?: number;
+  previewPinColor?: string;
 };
 
 export function validateCustomUrl(url: string): Error | undefined {
@@ -98,6 +100,36 @@ export function buildSettingsTree(
         { label: "Custom", value: "custom" },
       ],
     },
+    centerLat: {
+      label: "Default center latitude",
+      input: "number",
+      value: config.center?.lat,
+      help: "Set the initial map center latitude (e.g. 48.8566)",
+    },
+    centerLon: {
+      label: "Default center longitude",
+      input: "number",
+      value: config.center?.lon,
+      help: "Set the initial map center longitude (e.g. 2.3522)",
+    },
+    zoomLevel: {
+      label: "Default zoom level",
+      input: "number",
+      value: config.zoomLevel ?? 10,
+      help: "1 (far) to 24 (close)",
+    },
+    pinSize: {
+      label: "Pin size",
+      input: "number",
+      value: config.pinSize ?? 3,
+      help: "Marker radius in pixels",
+    },
+    previewPinColor: {
+      label: "Preview pin color",
+      input: "rgb",
+      value: config.previewPinColor,
+      help: "Color for the single preview marker (optional)",
+    },
   };
 
   // Only show the custom url input when the user selects the custom layer
@@ -130,6 +162,13 @@ export function buildSettingsTree(
     input: "select",
     value: config.followTopic,
     options: followTopicOptions,
+  };
+
+  generalSettings.setToCurrentView = {
+    label: "Set to current view",
+    input: "boolean",
+    value: false,
+    help: "Click On to capture the map's current center and zoom as defaults",
   };
 
   const settings: SettingsTreeNodes = {

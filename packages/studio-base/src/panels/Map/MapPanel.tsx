@@ -240,6 +240,45 @@ function MapPanel(props: MapPanelProps): JSX.Element {
         return { ...oldConfig, followTopic: String(value) };
       });
     }
+    if (path[1] === "setToCurrentView" && input === "boolean" && value === true) {
+      if (currentMap) {
+        const center = currentMap.getCenter();
+        const zoom = currentMap.getZoom();
+        setConfig((old) => ({
+          ...old,
+          center: { lat: center.lat, lon: center.lng },
+          zoomLevel: zoom,
+        }));
+      }
+      // reset toggle back to false so it can be clicked again later
+      setTimeout(() => {
+        setConfig((old) => old); // no-op to force settings tree refresh
+      }, 0);
+    }
+    if (path[1] === "centerLat" && input === "number") {
+      setConfig((old) => {
+        const lat = Number(value);
+        const lon = old.center?.lon ?? 0;
+        return { ...old, center: { lat, lon } };
+      });
+    }
+    if (path[1] === "centerLon" && input === "number") {
+      setConfig((old) => {
+        const lon = Number(value);
+        const lat = old.center?.lat ?? 0;
+        return { ...old, center: { lat, lon } };
+      });
+    }
+    if (path[1] === "zoomLevel" && input === "number") {
+      setConfig((old) => ({ ...old, zoomLevel: Number(value) }));
+    }
+    if (path[1] === "pinSize" && input === "number") {
+      const n = Number(value);
+      setConfig((old) => ({ ...old, pinSize: isFinite(n) ? n : old.pinSize }));
+    }
+    if (path[1] === "previewPinColor" && input === "rgb") {
+      setConfig((old) => ({ ...old, previewPinColor: String(value) }));
+    }
   }, []);
 
   useEffect(() => {
@@ -519,6 +558,7 @@ function MapPanel(props: MapPanelProps): JSX.Element {
         hoverColor: darkColor(topicLayer.baseColor),
         onHover,
         onClick,
+        pointRadius: config.pinSize,
       });
 
       topicLayer.allFrames.addLayer(pointLayer);
@@ -567,6 +607,7 @@ function MapPanel(props: MapPanelProps): JSX.Element {
         color: darkColor(topicLayer.baseColor),
         hoverColor: darkColor(topicLayer.baseColor),
         showAccuracy: true,
+        pointRadius: config.pinSize,
       });
 
       const pointLayerFix = FilteredPointLayer({
@@ -576,6 +617,7 @@ function MapPanel(props: MapPanelProps): JSX.Element {
         color: topicLayer.baseColor,
         hoverColor: darkColor(topicLayer.baseColor),
         showAccuracy: true,
+        pointRadius: config.pinSize,
       });
 
       topicLayer.currentFrame.addLayer(pointLayerNoFix);
@@ -620,8 +662,8 @@ function MapPanel(props: MapPanelProps): JSX.Element {
     const topicLayer = topicLayers.get(event.topic);
 
     const marker = new CircleMarker([event.message.latitude, event.message.longitude], {
-      radius: POINT_MARKER_RADIUS,
-      color: topicLayer ? darkColor(topicLayer.baseColor) : undefined,
+      radius: config.pinSize ?? POINT_MARKER_RADIUS,
+      color: config.previewPinColor || (topicLayer ? darkColor(topicLayer.baseColor) : undefined),
       stroke: false,
       fillOpacity: 1,
       interactive: false,
@@ -631,7 +673,7 @@ function MapPanel(props: MapPanelProps): JSX.Element {
     return () => {
       marker.remove();
     };
-  }, [allNavMessages, currentMap, previewTime, topicLayers]);
+  }, [allNavMessages, currentMap, previewTime, topicLayers, config.pinSize, config.previewPinColor]);
 
   // persist panel config on zoom changes
   useEffect(() => {
@@ -689,16 +731,13 @@ function MapPanel(props: MapPanelProps): JSX.Element {
 
   // Update the map view to focus on the centerpoint when it changes
   // Zoom is reset only once
-  const didResetZoomRef = useRef(false);
   useEffect(() => {
     if (!center) {
       return;
     }
 
-    // If center updates when following a topic we don't want to keep resetting the zoom.
-    const zoom = didResetZoomRef.current ? currentMap?.getZoom() : config.zoomLevel ?? 10;
+    const zoom = config.zoomLevel ?? currentMap?.getZoom() ?? 10;
     currentMap?.setView([center.lat, center.lon], zoom);
-    didResetZoomRef.current = true;
   }, [center, config.zoomLevel, currentMap]);
 
   // Indicate render is complete - the effect runs after the dom is updated

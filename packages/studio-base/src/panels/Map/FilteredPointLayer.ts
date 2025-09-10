@@ -20,6 +20,7 @@ type Args = {
   navSatMessageEvents: readonly MessageEvent<NavSatFixMsg>[];
   onHover?: (event: MessageEvent<NavSatFixMsg> | undefined) => void;
   onClick?: (event: MessageEvent<NavSatFixMsg>) => void;
+  pointRadius?: number;
 };
 
 class PointMarker extends CircleMarker {
@@ -63,7 +64,10 @@ function FilteredPointLayer(args: Args): FeatureGroup {
 
     (sparse2d[x] = sparse2d[x] ?? [])[y] = true;
 
-    const marker = new PointMarker([lat, lon], { ...defaultStyle, radius: POINT_MARKER_RADIUS });
+    const marker = new PointMarker([lat, lon], {
+      ...defaultStyle,
+      radius: args.pointRadius ?? POINT_MARKER_RADIUS,
+    });
     marker.messageEvent = messageEvent;
     marker.addTo(markersLayer);
 
