@@ -36,7 +36,8 @@ export default class FoxgloveWebSocketDataSourceFactory implements IDataSourceFa
       {
         id: "url",
         label: "WebSocket URL",
-        description: "Enter a full WebSocket URL, e.g. ws://10.2.0.100:8765",
+        description: "Format: ws://host:port (e.g. ws://10.2.0.100:8765)",
+        placeholder: "ws://10.2.0.100:8765",
         defaultValue: "ws://localhost:8765",
         validate: (newValue: string): Error | undefined => {
           try {
