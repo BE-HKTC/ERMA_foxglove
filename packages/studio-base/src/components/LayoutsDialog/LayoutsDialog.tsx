@@ -32,6 +32,8 @@ export default function LayoutsDialog({ open, onClose }: LayoutsDialogProps): JS
   const { layoutActions } = useWorkspaceActions();
   const [name, setName] = useState("");
   const [target, setTarget] = useState("");
+  const [retention, setRetention] = useState(false);
+  const [topicsCsv, setTopicsCsv] = useState("");
   const [layouts, setLayouts] = useState<SavedLayout[]>([]);
   const [selected, setSelected] = useState<string | undefined>();
 
@@ -50,7 +52,7 @@ export default function LayoutsDialog({ open, onClose }: LayoutsDialogProps): JS
   };
 
   const handleSave = async () => {
-    await layoutActions.save(name, target);
+    await layoutActions.save(name, target, retention, topicsCsv);
 
     await refresh();
   };
@@ -79,6 +81,24 @@ export default function LayoutsDialog({ open, onClose }: LayoutsDialogProps): JS
 
             fullWidth
           />
+          <Stack direction="row" spacing={2} alignItems="center">
+            <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <input
+                type="checkbox"
+                checked={retention}
+                onChange={(e) => setRetention(e.target.checked)}
+              />
+              Retain data (1 week)
+            </label>
+          </Stack>
+          <TextField
+            label="Topic whitelist (comma-separated)"
+            placeholder="/tf, /odom, /camera/image"
+            value={topicsCsv}
+            onChange={(e) => setTopicsCsv(e.target.value)}
+            helperText="Leave empty to include all topics"
+            fullWidth
+          />
           <Button variant="contained" onClick={handleSave} disabled={!name}>
             {t("saveLayout")}
           </Button>
@@ -94,28 +114,30 @@ export default function LayoutsDialog({ open, onClose }: LayoutsDialogProps): JS
                 key={layout.name}
                 disableGutters
                 selected={selected === layout.name}
-                onClick={() => {
-                  setName(layout.name);
-                  setTarget(layout.target ?? "");
-                  setSelected(layout.name);
-                }}
-                secondaryAction={
-                  <Stack direction="row" spacing={1}>
-                    <Button
-                      size="small"
-                      onClick={() => layoutActions.openSaved(layout.name, layout.target)}
-                    >
-                      {t("open")}
-                    </Button>
-                    <Button
-                      size="small"
-                      onClick={async () => {
-                        await layoutActions.save(layout.name, target);
+              onClick={() => {
+                setName(layout.name);
+                setTarget(layout.target ?? "");
+                setRetention(Boolean(layout.retention));
+                setTopicsCsv((layout.topics ?? []).join(", "));
+                setSelected(layout.name);
+              }}
+              secondaryAction={
+                <Stack direction="row" spacing={1}>
+                  <Button
+                    size="small"
+                    onClick={() => layoutActions.openSaved(layout.name, layout.target)}
+                  >
+                    {t("open")}
+                  </Button>
+                  <Button
+                    size="small"
+                    onClick={async () => {
+                        await layoutActions.save(layout.name, target, retention, topicsCsv);
                         await refresh();
                       }}
-                    >
-                      {t("updateLayout")}
-                    </Button>
+                  >
+                    {t("updateLayout")}
+                  </Button>
                     <Button
                       size="small"
                       onClick={async () => {
@@ -141,6 +163,18 @@ export default function LayoutsDialog({ open, onClose }: LayoutsDialogProps): JS
                           <br />
                         </>
                       )}
+                      {layout.retention != undefined && (
+                        <>
+                          Retention: {layout.retention ? "enabled" : "disabled"}
+                          <br />
+                        </>
+                      )}
+                      {layout.topics && layout.topics.length > 0 && (
+                        <>
+                          Topics: {layout.topics.join(", ")}
+                          <br />
+                        </>
+                      )}
                       {t("created")}: {new Date(layout.createdAt).toLocaleString()}
                       <br />
                       {t("updated")}: {new Date(layout.updatedAt).toLocaleString()}
@@ -159,4 +193,3 @@ export default function LayoutsDialog({ open, onClose }: LayoutsDialogProps): JS
     </Dialog>
   );
 }
-
