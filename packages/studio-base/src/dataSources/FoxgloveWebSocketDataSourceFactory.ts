@@ -55,13 +55,36 @@ export default class FoxgloveWebSocketDataSourceFactory implements IDataSourceFa
           }
         },
       },
+      {
+        id: "lookback",
+        label: "History window (optional)",
+        placeholder: "15m, 1h, 24h, 7d",
+        description: "Include initial history on connect (ERMA bridge only)",
+        validate: (value: string): Error | undefined => {
+          if (!value) return undefined;
+          if (/^\d+(s|m|h|d|w)$/.test(value)) return undefined;
+          return new Error("Use formats like 30s, 5m, 2h, 1d, 1w");
+        },
+      },
     ],
   };
 
   public initialize(args: DataSourceFactoryInitializeArgs): Player | undefined {
-    const url = args.params?.url;
+    let url = args.params?.url;
+    const lookback = args.params?.lookback;
     if (!url) {
       return;
+    }
+
+    // If a lookback window is provided, append as a query parameter
+    if (lookback) {
+      try {
+        const u = new URL(url);
+        u.searchParams.set("lookback", lookback);
+        url = u.toString();
+      } catch {
+        // ignore invalid URL; validation will catch elsewhere
+      }
     }
 
     return new FoxgloveWebSocketPlayer({

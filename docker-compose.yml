@@ -6,4 +6,5 @@ services:
       - "8080:8080"
     volumes:
       - ./foxglove_layouts:/foxglove/layouts
+      - ./foxglove_data:/foxglove/data
     restart: unless-stopped

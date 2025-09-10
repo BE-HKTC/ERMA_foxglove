@@ -46,6 +46,8 @@ export type SavedLayout = {
   createdAt: string;
   updatedAt: string;
   target?: string;
+  retention?: boolean;
+  topics?: string[];
 };
 
 export type WorkspaceActions = {
@@ -99,9 +101,9 @@ export type WorkspaceActions = {
     // This will perform a browser download of the current layout to a file
     exportToFile: () => void;
     // Upload the current layout to the server and copy a shareable URL
-    share: (name?: string, target?: string) => void;
+    share: (name?: string, target?: string, retentionEnabled?: boolean, topicsCsv?: string) => void;
     // Save the current layout to the server without copying a URL
-    save: (name?: string, target?: string) => Promise<void>;
+    save: (name?: string, target?: string, retentionEnabled?: boolean, topicsCsv?: string) => Promise<void>;
     // Fetch saved layout metadata from the server
     fetchSavedLayouts: () => Promise<SavedLayout[]>;
     // Open a saved layout in a new browser tab
@@ -252,7 +254,7 @@ export function useWorkspaceActions(): WorkspaceActions {
     void analytics.logEvent(AppEvent.LAYOUT_SHARE);
   }, [analytics, enqueueSnackbar, getCurrentLayoutState]);
 
-  const saveLayout = useCallback(async (rawName?: string, targetName?: string) => {
+  const saveLayout = useCallback(async (rawName?: string, targetName?: string, retentionEnabled?: boolean, topicsCsv?: string) => {
     const layoutData = getCurrentLayoutState().selectedLayout?.data;
     if (!layoutData) {
       return;
@@ -270,6 +272,8 @@ export function useWorkspaceActions(): WorkspaceActions {
       headers: {
         "Content-Type": "application/json",
         ...(targetName ? { "X-Layout-Target": targetName } : {}),
+        ...(retentionEnabled != undefined ? { "X-Layout-Retention": String(Boolean(retentionEnabled)) } : {}),
+        ...(topicsCsv && topicsCsv.trim().length > 0 ? { "X-Layout-Topics": topicsCsv } : {}),
       },
 
       body: JSON.stringify(layoutData),

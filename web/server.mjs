@@ -2,9 +2,14 @@ import http from 'http';
 import { promises as fs } from 'fs';
 import path from 'path';
 import handler from 'serve-handler';
+import { WebSocketServer } from 'ws';
+import FoxgloveServer from '@foxglove/ws-protocol/dist/cjs/src/FoxgloveServer.js';
+import FoxgloveClient from '@foxglove/ws-protocol/dist/cjs/src/FoxgloveClient.js';
+import { TargetRegistry } from './wsBridge.mjs';
 
 const publicDir = path.join(process.cwd(), 'public');
 const layoutsDir = process.env.LAYOUTS_DIR || path.join(process.cwd(), 'layouts');
+const dataDir = process.env.DATA_DIR || path.join(process.cwd(), 'data');
 const indexPath = path.join(layoutsDir, 'index.json');
 
 async function readIndex() {
@@ -38,9 +43,46 @@ async function ensureLayoutIndex() {
 }
 await ensureLayoutIndex();
 
+const registry = new TargetRegistry({ dataDir });
+
 const server = http.createServer(async (req, res) => {
   if (!req.url) {
     return handler(req, res, { public: publicDir });
+  }
+
+  if (req.url.startsWith('/api/layouts/') && req.method === 'POST') {
+    // Toggle retention flag for a layout
+    const name = req.url.slice('/api/layouts/'.length).replace(/\/$/, '').replace(/\/retention$/, '').split('/')[0];
+    if (!req.url.endsWith('/retention')) {
+      res.writeHead(404, { 'Content-Type': 'text/plain' });
+      res.end('Not found');
+      return;
+    }
+    let body = '';
+    req.on('data', (c) => (body += c));
+    req.on('end', async () => {
+      try {
+        const payload = JSON.parse(body || '{}');
+        const enabled = Boolean(payload.enabled);
+        const index = await readIndex();
+        const existing = index.find((i) => i.name === name);
+        if (!existing) {
+          res.writeHead(404, { 'Content-Type': 'text/plain' });
+          res.end('Layout not found');
+          return;
+        }
+        existing.retention = enabled;
+        existing.updatedAt = new Date().toISOString();
+        await writeIndex(index);
+        await registry.syncFromIndex(index);
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ ok: true }));
+      } catch (err) {
+        res.writeHead(500, { 'Content-Type': 'text/plain' });
+        res.end(String(err));
+      }
+    });
+    return;
   }
 
   if (req.url.startsWith('/layouts/')) {
@@ -73,20 +115,35 @@ const server = http.createServer(async (req, res) => {
             const index = await readIndex();
             const existing = index.find((item) => item.name === name);
             const targetName = req.headers['x-layout-target'];
+            const retentionHeader = req.headers['x-layout-retention'];
+            const topicsHeader = req.headers['x-layout-topics'];
             if (existing) {
               existing.updatedAt = now;
               if (typeof targetName === 'string') {
                 existing.target = targetName;
               }
+              if (typeof retentionHeader === 'string') {
+                existing.retention = retentionHeader === 'true';
+              }
+              if (typeof topicsHeader === 'string') {
+                const list = topicsHeader.split(',').map((s) => s.trim()).filter(Boolean);
+                existing.topics = list.length > 0 ? list : undefined;
+              }
             } else {
               index.push({
                 name,
                 target: typeof targetName === 'string' ? targetName : undefined,
+                retention: typeof retentionHeader === 'string' ? retentionHeader === 'true' : undefined,
+                topics: typeof topicsHeader === 'string'
+                  ? (topicsHeader.split(',').map((s) => s.trim()).filter(Boolean) || undefined)
+                  : undefined,
                 createdAt: now,
                 updatedAt: now,
               });
             }
             await writeIndex(index);
+            // Update registry after any layout change
+            await registry.syncFromIndex(index);
           }
           res.writeHead(200, { 'Content-Type': 'application/json' });
           res.end(JSON.stringify({ ok: true }));
@@ -109,6 +166,7 @@ const server = http.createServer(async (req, res) => {
       const name = path.basename(relative, '.json');
       const index = (await readIndex()).filter((item) => item.name !== name);
       await writeIndex(index);
+      await registry.syncFromIndex(index);
       res.writeHead(200, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ ok: true }));
       return;
@@ -123,3 +181,45 @@ server.listen(port, () => {
   // eslint-disable-next-line no-console
   console.log(`server listening on ${port}`);
 });
+
+// WebSocket bridge for history + live
+const wss = new WebSocketServer({ noServer: true, clientTracking: false, perMessageDeflate: false });
+
+server.on('upgrade', (req, socket, head) => {
+  try {
+    const url = new URL(req.url || '/', 'http://localhost');
+    if (!url.pathname.startsWith('/ws/')) {
+      socket.destroy();
+      return;
+    }
+    const slug = url.pathname.replace('/ws/', '').trim();
+    if (!slug) {
+      socket.destroy();
+      return;
+    }
+
+    wss.handleUpgrade(req, socket, head, async (ws) => {
+      // Create a per-connection FoxgloveServer instance
+      const fgServer = new FoxgloveServer({ name: `ERMA Bridge ${slug}`, capabilities: [] });
+      // Wire ws-protocol server onto this raw ws connection
+      const protocols = req.headers['sec-websocket-protocol']?.split(',').map((p) => p.trim()) || [];
+      const chosen = fgServer.handleProtocols(protocols);
+      if (chosen === false) {
+        ws.close(1002, 'Unsupported protocol');
+        return;
+      }
+      // Echo the chosen subprotocol if requested (ws library doesn’t set it automatically here)
+      try { ws.protocol = chosen; } catch {}
+      fgServer.handleConnection(ws, `client@${slug}`);
+
+      const lookbackParam = (new URLSearchParams(url.search)).get('lookback') || '';
+      const manager = await registry.getOrCreate(slug);
+      await manager.attachClientServer(fgServer, { lookback: lookbackParam });
+    });
+  } catch {
+    socket.destroy();
+  }
+});
+
+// Initialize registry from layouts index
+readIndex().then((index) => registry.syncFromIndex(index)).catch(() => {});

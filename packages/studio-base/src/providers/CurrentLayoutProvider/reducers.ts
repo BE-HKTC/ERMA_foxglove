@@ -43,6 +43,7 @@ import {
   SaveFullConfigPayload,
 } from "@foxglove/studio-base/context/CurrentLayoutContext/actions";
 import { TabPanelConfig } from "@foxglove/studio-base/types/layouts";
+import { PANEL_TITLE_CONFIG_KEY } from "@foxglove/studio-base/util/layout";
 import { PlaybackConfig, MosaicDropTargetPosition } from "@foxglove/studio-base/types/panels";
 import { TAB_PANEL_TYPE } from "@foxglove/studio-base/util/globalConstants";
 import {
@@ -97,7 +98,19 @@ function savePanelConfigs(state: LayoutData, payload: SaveConfigsPayload): Layou
   const newConfigById = configs.reduce(
     (currentSavedProps, { id, config, defaultConfig = {}, override = false }) => {
       if (override) {
-        return { ...currentSavedProps, [id]: config };
+        // Preserve custom panel title unless explicitly provided when overriding
+        const prev = currentSavedProps[id];
+        const next = { ...config } as Record<string, unknown>;
+        if (
+          prev != undefined &&
+          (prev as Record<string, unknown>)[PANEL_TITLE_CONFIG_KEY] !== undefined &&
+          next[PANEL_TITLE_CONFIG_KEY] === undefined
+        ) {
+          next[PANEL_TITLE_CONFIG_KEY] = (prev as Record<string, unknown>)[
+            PANEL_TITLE_CONFIG_KEY
+          ];
+        }
+        return { ...currentSavedProps, [id]: next };
       }
 
       const oldConfig = currentSavedProps[id];
@@ -146,7 +159,19 @@ function saveFullPanelConfig(state: LayoutData, payload: SaveFullConfigPayload):
   const fullConfig = state.configById;
   for (const [panelId, panelConfig] of Object.entries(fullConfig)) {
     if (getPanelTypeFromId(panelId) === panelType) {
-      newProps[panelId] = perPanelFunc(panelConfig);
+      const nextConfig = perPanelFunc(panelConfig);
+      // Preserve custom panel title unless explicitly provided by perPanelFunc
+      if (
+        nextConfig != undefined &&
+        (nextConfig as Record<string, unknown>)[PANEL_TITLE_CONFIG_KEY] === undefined &&
+        panelConfig != undefined &&
+        (panelConfig as Record<string, unknown>)[PANEL_TITLE_CONFIG_KEY] !== undefined
+      ) {
+        (nextConfig as Record<string, unknown>)[PANEL_TITLE_CONFIG_KEY] = (
+          panelConfig as Record<string, unknown>
+        )[PANEL_TITLE_CONFIG_KEY];
+      }
+      newProps[panelId] = nextConfig;
     }
   }
 
