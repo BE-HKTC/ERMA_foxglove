@@ -42,6 +42,8 @@ export const panels = {
   tableDescription: "Display topic messages in a tabular format.",
   teleop: "Teleop",
   teleopDescription: "Teleoperate a robot over a live connection.",
+  gamepad: "Gamepad",
+  gamepadDescription: "Use a browser-supported gamepad (e.g., Xbox) to publish Twist.",
   topicGraph: "Topic Graph",
   topicGraphDescription: "Display a graph of active nodes, topics, and services.",
   userScripts: "User Scripts",
