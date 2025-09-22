@@ -421,7 +421,11 @@ export class TargetManager {
       }
 
       // Write to MCAP
-      this.#writeMcapMessage(msg.channelId, ch, msg.timestamp, new Uint8Array(msg.data.buffer, msg.data.byteOffset, msg.data.byteLength)).catch(() => {});
+      const payload = msg.data instanceof Uint8Array ? new Uint8Array(msg.data) : new Uint8Array(msg.data.buffer, msg.data.byteOffset, msg.data.byteLength);
+      this.#writeMcapMessage(msg.channelId, ch, msg.timestamp, payload).catch((err) => {
+        // eslint-disable-next-line no-console
+        console.error(`[${this.slug}] write MCAP failed for ${ch.topic}`, err);
+      });
     });
   }
 
@@ -481,7 +485,11 @@ export class TargetManager {
   }
 
   async #writeMcapMessage(upstreamId, ch, timestampBigInt, payload) {
-    if (!this.writer) return;
+    if (!this.writer) {
+      // eslint-disable-next-line no-console
+      console.warn(`[${this.slug}] writer missing, dropping message for ${ch.topic}`);
+      return;
+    }
     await this.#ensureMcapChannel(upstreamId, ch);
     const channelId = this.mcapChannelIds.get(upstreamId);
     if (channelId == null) return;
