@@ -114,11 +114,13 @@ export class TargetManager {
     this.#loggedDir = false;
     this.#loggedChannels = undefined;
     this.subscriptionByChannel = new Map();
+    this.subscriptionInfo = new Map();
   }
 
   #loggedDir;
   #loggedChannels;
   subscriptionByChannel;
+  subscriptionInfo;
 
   async #ensureDirs() {
     const dir = path.join(this.dataDir, this.slug);
@@ -153,6 +155,7 @@ export class TargetManager {
     clearInterval(this.retentionTimer);
     await this.#closeWriter();
     this.subscriptionByChannel.clear();
+    this.subscriptionInfo.clear();
   }
 
   setTopicsWhitelist(topics) {
@@ -176,6 +179,7 @@ export class TargetManager {
     try {
       const subId = this.client.subscribe(channelId);
       this.subscriptionByChannel.set(channelId, subId);
+      this.subscriptionInfo.set(subId, { channelId, topic });
       // eslint-disable-next-line no-console
       console.log(`[${this.slug}] subscribed to channel ${channelId} (${topic})`);
     } catch (err) {
@@ -188,6 +192,9 @@ export class TargetManager {
     const subId = this.subscriptionByChannel.get(channelId);
     if (!this.client || subId == undefined) {
       this.subscriptionByChannel.delete(channelId);
+      if (subId != undefined) {
+        this.subscriptionInfo.delete(subId);
+      }
       return;
     }
     try {
@@ -199,6 +206,7 @@ export class TargetManager {
       console.error(`[${this.slug}] unsubscribe failed`, err);
     }
     this.subscriptionByChannel.delete(channelId);
+    this.subscriptionInfo.delete(subId);
   }
 
   async #openWriter(filePath) {
@@ -387,6 +395,7 @@ export class TargetManager {
       // eslint-disable-next-line no-console
       console.warn(`[${this.slug}] upstream closed, retrying...`);
       this.subscriptionByChannel.clear();
+      this.subscriptionInfo.clear();
       setTimeout(() => this.#connectUpstream(), 2000);
     });
     this.client.on('advertise', (channels) => {
@@ -408,12 +417,23 @@ export class TargetManager {
       }
     });
     this.client.on('message', (msg) => {
+      const subInfo = this.subscriptionInfo.get(msg.subscriptionId);
+      if (!subInfo) {
+        // eslint-disable-next-line no-console
+        console.warn(`[${this.slug}] received message for unknown subscription ${msg.subscriptionId}`);
+        return;
+      }
+      const ch = this.channels.get(subInfo.channelId);
+      if (!ch) {
+        // eslint-disable-next-line no-console
+        console.warn(`[${this.slug}] received message for unknown channel ${subInfo.channelId}`);
+        return;
+      }
+      const payload = new Uint8Array(msg.data.buffer, msg.data.byteOffset, msg.data.byteLength);
       // eslint-disable-next-line no-console
-      console.log(`[${this.slug}] received message channel ${msg.channelId} len ${msg.data?.byteLength ?? 0}`);
-      const ch = this.channels.get(msg.channelId);
-      if (!ch) return;
+      console.log(`[${this.slug}] received message channel ${subInfo.channelId} (${ch.topic}) len ${payload.byteLength}`);
       if (this.topicsWhitelist && !this.topicsWhitelist.has(ch.topic)) return;
-      this.#storeRing(ch.topic, msg.timestamp, msg.data);
+      this.#storeRing(ch.topic, msg.timestamp, payload);
 
       // Rotate segment if hour boundary crossed
       const now = new Date();
@@ -423,8 +443,7 @@ export class TargetManager {
       }
 
       // Write to MCAP
-      const payload = msg.data instanceof Uint8Array ? new Uint8Array(msg.data) : new Uint8Array(msg.data.buffer, msg.data.byteOffset, msg.data.byteLength);
-      this.#writeMcapMessage(msg.channelId, ch, msg.timestamp, payload).catch((err) => {
+      this.#writeMcapMessage(subInfo.channelId, ch, msg.timestamp, payload).catch((err) => {
         // eslint-disable-next-line no-console
         console.error(`[${this.slug}] write MCAP failed for ${ch.topic}`, err);
       });
