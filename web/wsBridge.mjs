@@ -430,8 +430,6 @@ export class TargetManager {
         return;
       }
       const payload = new Uint8Array(msg.data.buffer, msg.data.byteOffset, msg.data.byteLength);
-      // eslint-disable-next-line no-console
-      console.log(`[${this.slug}] received message channel ${subInfo.channelId} (${ch.topic}) len ${payload.byteLength}`);
       if (this.topicsWhitelist && !this.topicsWhitelist.has(ch.topic)) return;
       this.#storeRing(ch.topic, msg.timestamp, payload);
 
