@@ -42,7 +42,7 @@ export default function LayoutsDialog({ open, onClose }: LayoutsDialogProps): JS
       layoutActions
         .fetchSavedLayouts()
         .then(setLayouts)
-        .catch(() => setLayouts([]));
+        .catch(() => { setLayouts([]); });
     }
   }, [open, layoutActions]);
 
@@ -77,7 +77,7 @@ export default function LayoutsDialog({ open, onClose }: LayoutsDialogProps): JS
           <TextField
             label={t("layoutTarget")}
             value={target}
-            onChange={(e) => setTarget(e.target.value)}
+            onChange={(e) => { setTarget(e.target.value); }}
 
             fullWidth
           />
@@ -86,7 +86,7 @@ export default function LayoutsDialog({ open, onClose }: LayoutsDialogProps): JS
               <input
                 type="checkbox"
                 checked={retention}
-                onChange={(e) => setRetention(e.target.checked)}
+                onChange={(e) => { setRetention(e.target.checked); }}
               />
               Retain data (1 week)
             </label>
@@ -95,17 +95,17 @@ export default function LayoutsDialog({ open, onClose }: LayoutsDialogProps): JS
             label="Topic whitelist (comma-separated)"
             placeholder="/tf, /odom, /camera/image"
             value={topicsCsv}
-            onChange={(e) => setTopicsCsv(e.target.value)}
+            onChange={(e) => { setTopicsCsv(e.target.value); }}
             helperText="Leave empty to include all topics"
             fullWidth
           />
           <Button variant="contained" onClick={handleSave} disabled={!name}>
             {t("saveLayout")}
           </Button>
-          <Button onClick={() => layoutActions.importFromFile()}>
+          <Button onClick={() => { layoutActions.importFromFile(); }}>
             {t("importLayoutFromFile")}
           </Button>
-          <Button onClick={() => layoutActions.exportToFile()}>
+          <Button onClick={() => { layoutActions.exportToFile(); }}>
             {t("exportLayoutToFile")}
           </Button>
           <List dense>
@@ -123,7 +123,7 @@ export default function LayoutsDialog({ open, onClose }: LayoutsDialogProps): JS
               }}
               secondaryAction={
                 <Stack direction="row" spacing={1}>
-                  <Button size="small" onClick={() => layoutActions.openSaved(layout)}>
+                  <Button size="small" onClick={() => { layoutActions.openSaved(layout); }}>
                     {t("open")}
                   </Button>
                   <Button

@@ -29,7 +29,7 @@ type Config = {
 };
 
 function clampDeadzone(value: number, dz: number): number {
-  if (Math.abs(value) < dz) return 0;
+  if (Math.abs(value) < dz) {return 0;}
   const sign = Math.sign(value);
   const t = (Math.abs(value) - dz) / (1 - dz);
   return sign * Math.min(1, Math.max(0, t));
@@ -102,12 +102,12 @@ export default function GamepadPanel({ context }: Props): JSX.Element {
   });
 
   const settingsActionHandler = useCallback((action: SettingsTreeAction) => {
-    if (action.action !== "update") return;
+    if (action.action !== "update") {return;}
     setConfig((prev) => {
       const next = { ...prev } as any; // eslint-disable-line @typescript-eslint/no-explicit-any
       const [_, key] = action.payload.path; // ["general", key]
       if (key === "topic" || key === "publishRate" || key === "deadzone") {
-        (next as any)[key] = action.payload.value;
+        (next )[key] = action.payload.value;
       } else if (key === "linearScale") {
         next.scale = { ...next.scale, linear: Number(action.payload.value) };
       } else if (key === "angularScale") {
@@ -131,7 +131,7 @@ export default function GamepadPanel({ context }: Props): JSX.Element {
     context.onRender = (renderState, done) => {
       setRenderDone(() => done);
       setTopics(renderState.topics ?? []);
-      if (renderState.colorScheme) setColorScheme(renderState.colorScheme);
+      if (renderState.colorScheme) {setColorScheme(renderState.colorScheme);}
     };
   }, [context]);
 
@@ -144,9 +144,9 @@ export default function GamepadPanel({ context }: Props): JSX.Element {
     function refreshDevices() {
       const pads = navigator.getGamepads ? navigator.getGamepads() : [];
       const opts: { label: string; value: number }[] = [{ label: "Auto (first connected)", value: -1 }];
-      for (let i = 0; i < (pads?.length ?? 0); i++) {
-        const p = pads?.[i];
-        if (p) opts.push({ label: `${i}: ${p.id}`, value: i });
+      for (let i = 0; i < (pads.length ?? 0); i++) {
+        const p = pads[i];
+        if (p) {opts.push({ label: `${i}: ${p.id}`, value: i });}
       }
       setDeviceOptions(opts);
     }
@@ -167,7 +167,7 @@ export default function GamepadPanel({ context }: Props): JSX.Element {
 
   // Advertise Twist topic
   useLayoutEffect(() => {
-    if (!config.topic) return;
+    if (!config.topic) {return;}
     context.advertise?.(config.topic, "geometry_msgs/Twist", {
       datatypes: new Map([
         ["geometry_msgs/Vector3", ros1["geometry_msgs/Vector3"]],
@@ -183,14 +183,21 @@ export default function GamepadPanel({ context }: Props): JSX.Element {
     let raf = 0;
     const loop = (time: number) => {
       raf = requestAnimationFrame(loop);
-      if (!config.topic || !context.publish || config.publishRate <= 0) return;
+      if (!config.topic || !context.publish || config.publishRate <= 0) {
+        return;
+      }
       const intervalMs = 1000 / config.publishRate;
-      if (time - lastPublishRef.current < intervalMs) return;
+      if (time - lastPublishRef.current < intervalMs) {
+        return;
+      }
       lastPublishRef.current = time;
 
-      const padEntries = navigator.getGamepads ? Array.from(navigator.getGamepads()) : [];
+      const rawPads = navigator.getGamepads ? navigator.getGamepads() : [];
+      const padEntries = Array.from(rawPads ?? []);
       const pad = selectGamepad(padEntries, config.deviceIndex);
-      if (!pad) return;
+      if (!pad) {
+        return;
+      }
 
       const activePad = pad;
       const ax = (i: number) => {
@@ -208,8 +215,20 @@ export default function GamepadPanel({ context }: Props): JSX.Element {
       context.publish(config.topic, message);
     };
     raf = requestAnimationFrame(loop);
-    return () => cancelAnimationFrame(raf);
-  }, [context, config.topic, config.publishRate, config.deadzone, config.linearAxis.x, config.angularAxis.z, config.scale.linear, config.scale.angular]);
+    return () => {
+      cancelAnimationFrame(raf);
+    };
+  }, [
+    context,
+    config.topic,
+    config.publishRate,
+    config.deadzone,
+    config.linearAxis.x,
+    config.angularAxis.z,
+    config.scale.linear,
+    config.scale.angular,
+    config.deviceIndex,
+  ]);
 
   useLayoutEffect(() => {
     renderDone();
@@ -221,7 +240,8 @@ export default function GamepadPanel({ context }: Props): JSX.Element {
     let raf = 0;
     const tick = () => {
       raf = requestAnimationFrame(tick);
-      const padEntries = navigator.getGamepads ? Array.from(navigator.getGamepads()) : [];
+      const rawPads = navigator.getGamepads ? navigator.getGamepads() : [];
+      const padEntries = Array.from(rawPads ?? []);
       const pad = selectGamepad(padEntries, config.deviceIndex);
       if (pad) {
         const axes = pad.axes.map((v) => v.toFixed(2)).join(", ");
@@ -233,10 +253,12 @@ export default function GamepadPanel({ context }: Props): JSX.Element {
       }
     };
     raf = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(raf);
-  }, []);
+    return () => {
+      cancelAnimationFrame(raf);
+    };
+  }, [config.deviceIndex]);
 
-  const canPublish = context.publish != undefined && (config.publishRate ?? 0) > 0;
+  const canPublish = context.publish != undefined && config.publishRate > 0;
   const hasTopic = Boolean(config.topic);
 
   return (

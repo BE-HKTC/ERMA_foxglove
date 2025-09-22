@@ -13,6 +13,14 @@ async function ensureMcap() {
   }
 }
 
+let McapIndexedReader;
+async function ensureMcapReader() {
+  if (!McapIndexedReader) {
+    const mod = await import('@mcap/core');
+    McapIndexedReader = mod.McapIndexedReader;
+  }
+}
+
 class FileWritable {
   constructor(fd) {
     this.fd = fd;
@@ -175,6 +183,119 @@ export class TargetManager {
     }));
   }
 
+  async #loadPersistentHistory(earliestNs, topicsSet, ringEarliestByTopic) {
+    if (!topicsSet || topicsSet.size === 0) {
+      return new Map();
+    }
+
+    await ensureMcapReader();
+
+    let dir;
+    try {
+      dir = await this.#ensureDirs();
+    } catch {
+      return new Map();
+    }
+
+    let files;
+    try {
+      files = await fs.readdir(dir);
+    } catch {
+      return new Map();
+    }
+
+    const history = new Map();
+    const regex = /^(\d{4})(\d{2})(\d{2})_(\d{2})\.mcap$/;
+    const earliestMs = Number(earliestNs / 1_000_000n);
+    const candidates = files
+      .map((file) => {
+        const match = regex.exec(file);
+        if (!match) {
+          return undefined;
+        }
+        const [, y, m, d, h] = match;
+        const startMs = Date.UTC(Number(y), Number(m) - 1, Number(d), Number(h));
+        return { file, startMs };
+      })
+      .filter((value) => value && value.startMs + 3_600_000 >= earliestMs)
+      .sort((a, b) => a.startMs - b.startMs);
+
+    for (const entry of candidates) {
+      const filePath = path.join(dir, entry.file);
+      let handle;
+      try {
+        handle = await fs.open(filePath, 'r');
+      } catch {
+        continue;
+      }
+
+      try {
+        const stat = await handle.stat();
+        const readable = {
+          size: async () => BigInt(stat.size),
+          read: async (offset, length) => {
+            const total = Number(length);
+            const buffer = Buffer.alloc(total);
+            let filled = 0;
+            let position = Number(offset);
+            while (filled < total) {
+              const { bytesRead } = await handle.read(buffer, filled, total - filled, position);
+              if (bytesRead === 0) {
+                break;
+              }
+              filled += bytesRead;
+              position += bytesRead;
+            }
+            if (filled < total) {
+              throw new Error(`Short read (${filled}/${total}) from ${entry.file}`);
+            }
+            return buffer;
+          },
+        };
+
+        const reader = await McapIndexedReader.Initialize({ readable });
+        const topicsArray = Array.from(topicsSet);
+        const messageIterator = reader.readMessages({
+          startTime: earliestNs,
+          topics: topicsArray.length > 0 ? topicsArray : undefined,
+        });
+
+        for await (const msg of messageIterator) {
+          const channel = reader.channelsById.get(msg.channelId);
+          if (!channel) {
+            continue;
+          }
+          if (topicsSet && !topicsSet.has(channel.topic)) {
+            continue;
+          }
+          const ringCutoff = ringEarliestByTopic.get(channel.topic);
+          if (ringCutoff != undefined && msg.logTime >= ringCutoff) {
+            continue;
+          }
+          if (msg.logTime < earliestNs) {
+            continue;
+          }
+          let arr = history.get(channel.topic);
+          if (!arr) {
+            arr = [];
+            history.set(channel.topic, arr);
+          }
+          arr.push({ t: msg.logTime, p: new Uint8Array(msg.data) });
+        }
+      } catch (err) {
+        console.warn(`[${this.slug}] failed to read history from ${entry.file}:`, err);
+      } finally {
+        try { await handle.close(); } catch {}
+      }
+    }
+
+    for (const arr of history.values()) {
+      arr.sort((a, b) => (a.t < b.t ? -1 : a.t > b.t ? 1 : 0));
+    }
+
+    return history;
+  }
+
   #connectUpstream() {
     try {
       this.client = new FoxgloveClient({ ws: new WebSocket(this.target, [FoxgloveClient.SUPPORTED_SUBPROTOCOL]) });
@@ -317,6 +438,7 @@ export class TargetManager {
   async attachClientServer(fgServer, { lookback }) {
     // Advertise current channels to this server instance and build mapping
     const map = new Map(); // upstreamId -> { serverChanId, topic }
+    const serverChannelToTopic = new Map(); // serverChanId -> topic
     for (const [upId, ch] of this.channels) {
       const serverId = fgServer.addChannel({
         topic: ch.topic,
@@ -325,16 +447,41 @@ export class TargetManager {
         schema: ch.schema,
       });
       map.set(upId, { serverChanId: serverId, topic: ch.topic });
+      serverChannelToTopic.set(serverId, ch.topic);
     }
     const lookbackMs = parseLookback(lookback, this.maxRingMs);
     const earliest = BigInt(Date.now() - lookbackMs) * 1_000_000n;
 
+    const topicsSet = new Set(serverChannelToTopic.values());
+
+    const ringEarliestByTopic = new Map();
+    for (const [topic, arr] of this.ring) {
+      if (arr.length > 0) {
+        ringEarliestByTopic.set(topic, arr[0].t);
+      }
+    }
+
+    let persistedHistory = new Map();
+    try {
+      persistedHistory = await this.#loadPersistentHistory(earliest, topicsSet, ringEarliestByTopic);
+    } catch (err) {
+      console.warn(`[${this.slug}] failed to load persisted history:`, err);
+    }
+
     // On subscribe send backlog for that channel to this single-client server
     fgServer.on('subscribe', (serverChanId) => {
       // find topic for this serverChanId
-      const entry = Array.from(map.values()).find((v) => v.serverChanId === serverChanId);
-      if (!entry) return;
-      const arr = this.ring.get(entry.topic);
+      const topic = serverChannelToTopic.get(serverChanId);
+      if (!topic) return;
+      const diskMessages = persistedHistory.get(topic);
+      if (diskMessages && diskMessages.length > 0) {
+        for (const { t, p } of diskMessages) {
+          if (t >= earliest) {
+            fgServer.sendMessage(serverChanId, t, p);
+          }
+        }
+      }
+      const arr = this.ring.get(topic);
       if (!arr || arr.length === 0) return;
       for (const { t, p } of arr) {
         if (t >= earliest) {

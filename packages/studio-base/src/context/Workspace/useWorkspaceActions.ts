@@ -4,12 +4,12 @@
 
 import { Draft, produce } from "immer";
 import * as _ from "lodash-es";
+import { useSnackbar } from "notistack";
 import { Dispatch, SetStateAction, useCallback, useMemo } from "react";
 import { useMountedState } from "react-use";
-import { useSnackbar } from "notistack";
-import Logger from "@foxglove/log";
 
 import { useGuaranteedContext } from "@foxglove/hooks";
+import Logger from "@foxglove/log";
 import { AppSettingsTab } from "@foxglove/studio-base/components/AppSettingsDialog/AppSettingsDialog";
 import { DataSourceDialogItem } from "@foxglove/studio-base/components/DataSourceDialog";
 import { useAnalytics } from "@foxglove/studio-base/context/AnalyticsContext";
@@ -24,9 +24,9 @@ import {
 } from "@foxglove/studio-base/context/PlayerSelectionContext";
 import useCallbackWithToast from "@foxglove/studio-base/hooks/useCallbackWithToast";
 import { AppEvent } from "@foxglove/studio-base/services/IAnalytics";
-import { downloadTextFile } from "@foxglove/studio-base/util/download";
-import clipboard from "@foxglove/studio-base/util/clipboard";
 import { updateAppURLState } from "@foxglove/studio-base/util/appURLState";
+import clipboard from "@foxglove/studio-base/util/clipboard";
+import { downloadTextFile } from "@foxglove/studio-base/util/download";
 import showOpenFilePicker from "@foxglove/studio-base/util/showOpenFilePicker";
 
 import {
@@ -57,7 +57,7 @@ function bridgeUrlForTarget(target?: string): string | undefined {
   if (!slug) {
     return undefined;
   }
-  if (typeof window === "undefined" || !window.location) {
+  if (!window.location) {
     return `/ws/${slug}`;
   }
   const proto = window.location.protocol === "https:" ? "wss" : "ws";
@@ -530,7 +530,7 @@ export function useWorkspaceActions(): WorkspaceActions {
         exportToFile: exportLayoutToFile,
         share: shareLayout,
         save: saveLayout,
-        fetchSavedLayouts: fetchSavedLayouts,
+        fetchSavedLayouts,
         openSaved: openSavedLayout,
         delete: deleteLayout,
       },

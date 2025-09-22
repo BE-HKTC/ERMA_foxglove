@@ -43,9 +43,9 @@ import {
   SaveFullConfigPayload,
 } from "@foxglove/studio-base/context/CurrentLayoutContext/actions";
 import { TabPanelConfig } from "@foxglove/studio-base/types/layouts";
-import { PANEL_TITLE_CONFIG_KEY } from "@foxglove/studio-base/util/layout";
 import { PlaybackConfig, MosaicDropTargetPosition } from "@foxglove/studio-base/types/panels";
 import { TAB_PANEL_TYPE } from "@foxglove/studio-base/util/globalConstants";
+import { PANEL_TITLE_CONFIG_KEY } from "@foxglove/studio-base/util/layout";
 import {
   updateTabPanelLayout,
   replaceAndRemovePanels,

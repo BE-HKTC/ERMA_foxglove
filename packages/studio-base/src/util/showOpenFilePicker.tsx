@@ -28,7 +28,7 @@ export default async function showOpenFilePicker(
   }
 
   log.debug("showOpenFilePicker: using input fallback");
-  return new Promise<FileSystemFileHandle[]>((resolve) => {
+  return await new Promise<FileSystemFileHandle[]>((resolve) => {
     const input = document.createElement("input");
     input.type = "file";
     input.multiple = options?.multiple ?? false;

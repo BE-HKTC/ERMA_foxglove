@@ -37,7 +37,7 @@ export function WorkspaceDialogs(): JSX.Element {
       {layoutsDialogOpen && (
         <LayoutsDialog
           open
-          onClose={() => dialogActions.layouts.close()}
+          onClose={() => { dialogActions.layouts.close(); }}
         />
       )}
     </>

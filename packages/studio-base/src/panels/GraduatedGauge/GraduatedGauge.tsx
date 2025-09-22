@@ -5,8 +5,8 @@
 import * as _ from "lodash-es";
 import { useCallback, useEffect, useLayoutEffect, useReducer, useState } from "react";
 import { v4 as uuidv4 } from "uuid";
-import Logger from "@foxglove/log";
 
+import Logger from "@foxglove/log";
 import { parseMessagePath, MessagePath } from "@foxglove/message-path";
 import { MessageEvent, PanelExtensionContext, SettingsTreeAction } from "@foxglove/studio";
 import { simpleGetMessagePathDataItems } from "@foxglove/studio-base/components/MessagePathSyntax/simpleGetMessagePathDataItems";
@@ -275,9 +275,9 @@ export function GraduatedGauge({ context }: Props): JSX.Element {
       : NaN;
 
   // Sanitize numeric inputs to avoid NaN/invalid math when fields are cleared
-  const safeMin = Number.isFinite(config.minValue) ? (config.minValue as number) : 0;
+  const safeMin = Number.isFinite(config.minValue) ? (config.minValue ) : 0;
   const safeMax = Number.isFinite(config.maxValue)
-    ? Math.max(config.maxValue as number, safeMin + 1e-6)
+    ? Math.max(config.maxValue , safeMin + 1e-6)
     : safeMin + 1;
   const clampedValue = Math.max(safeMin, Math.min(rawValue, safeMax));
   const scaledValue = (clampedValue - safeMin) / Math.max(1e-6, safeMax - safeMin);
@@ -360,7 +360,7 @@ export function GraduatedGauge({ context }: Props): JSX.Element {
             >
               {ticks.map((tick, i) => (
                 <g
-                  // eslint-disable-next-line react/no-array-index-key
+                   
                   key={i}
                 >
                   <line

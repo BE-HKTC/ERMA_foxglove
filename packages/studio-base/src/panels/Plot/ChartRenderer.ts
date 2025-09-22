@@ -294,7 +294,7 @@ export class ChartRenderer {
       }
     } else {
       const ticksOptions = this.#chartInstance.options.scales?.x?.ticks;
-      if (ticksOptions && ticksOptions.callback) {
+      if (ticksOptions?.callback) {
         // restore default behavior
         ticksOptions.callback = undefined as unknown as never;
       }

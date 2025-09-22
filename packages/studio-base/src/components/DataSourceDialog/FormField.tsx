@@ -100,8 +100,8 @@ export function FormField(props: Props): JSX.Element {
           }
         };
 
-        ws.onopen = () => done(true);
-        ws.onerror = () => done(false);
+        ws.onopen = () => { done(true); };
+        ws.onerror = () => { done(false); };
         ws.onclose = () => {
           // If closed before opening and not otherwise settled, mark unreachable
           if (!settled) {
@@ -110,7 +110,7 @@ export function FormField(props: Props): JSX.Element {
         };
 
         // Timeout safeguard (2.5s)
-        timerRef.current = window.setTimeout(() => done(false), 2500);
+        timerRef.current = window.setTimeout(() => { done(false); }, 2500);
       } catch {
         setChecking(false);
         setReachable(false);

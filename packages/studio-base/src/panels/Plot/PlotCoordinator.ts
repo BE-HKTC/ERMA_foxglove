@@ -129,7 +129,7 @@ export class PlotCoordinator extends EventEmitter<EventTypes> {
       // Record absolute epoch base if available
       // Use startTime as base if it appears absolute (sec > ~20 years)
       // Otherwise clear base to fall back to relative seconds
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+       
       const isAbs = startTime.sec > 20 * 365 * 24 * 60 * 60;
       this.#absoluteBaseSec = isAbs ? startTime.sec + startTime.nsec / 1e9 : undefined;
     }

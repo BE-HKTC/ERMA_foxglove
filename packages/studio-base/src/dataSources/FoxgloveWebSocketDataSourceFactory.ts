@@ -48,7 +48,7 @@ export default class FoxgloveWebSocketDataSourceFactory implements IDataSourceFa
             return undefined;
           } catch (err) {
             // Provide a clearer hint when the scheme is missing
-            if (/^[^:]+:\/\//.test(newValue) === false) {
+            if (!/^[^:]+:\/\//.test(newValue)) {
               return new Error("Enter a valid WebSocket URL including scheme, e.g. ws://host:8765");
             }
             return new Error("Enter a valid WebSocket URL");
@@ -61,8 +61,8 @@ export default class FoxgloveWebSocketDataSourceFactory implements IDataSourceFa
         placeholder: "15m, 1h, 24h, 7d",
         description: "Include initial history on connect (ERMA bridge only)",
         validate: (value: string): Error | undefined => {
-          if (!value) return undefined;
-          if (/^\d+(s|m|h|d|w)$/.test(value)) return undefined;
+          if (!value) {return undefined;}
+          if (/^\d+(s|m|h|d|w)$/.test(value)) {return undefined;}
           return new Error("Use formats like 30s, 5m, 2h, 1d, 1w");
         },
       },
