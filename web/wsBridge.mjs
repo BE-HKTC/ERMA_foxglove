@@ -221,6 +221,9 @@ export class TargetManager {
       .sort((a, b) => a.startMs - b.startMs);
 
     for (const entry of candidates) {
+      if (this.currentSegment && this.currentSegment.endsWith(entry.file)) {
+        continue;
+      }
       const filePath = path.join(dir, entry.file);
       let handle;
       try {
@@ -231,6 +234,9 @@ export class TargetManager {
 
       try {
         const stat = await handle.stat();
+        if (stat.size < 80) {
+          continue;
+        }
         const readable = {
           size: async () => BigInt(stat.size),
           read: async (offset, length) => {
