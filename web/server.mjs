@@ -3,7 +3,8 @@ import { promises as fs } from 'fs';
 import path from 'path';
 import handler from 'serve-handler';
 import { WebSocketServer } from 'ws';
-import { FoxgloveServer, FoxgloveClient } from '@foxglove/ws-protocol';
+import wsProtocol from '@foxglove/ws-protocol';
+const { FoxgloveServer, FoxgloveClient } = wsProtocol;
 import { TargetRegistry } from './wsBridge.mjs';
 
 const publicDir = path.join(process.cwd(), 'public');
