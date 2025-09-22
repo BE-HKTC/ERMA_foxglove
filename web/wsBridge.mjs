@@ -1,7 +1,6 @@
 import path from 'path';
 import { promises as fs } from 'fs';
-import FoxgloveClient from '@foxglove/ws-protocol/dist/esm/src/FoxgloveClient.js';
-import FoxgloveServer from '@foxglove/ws-protocol/dist/esm/src/FoxgloveServer.js';
+import { FoxgloveClient, FoxgloveServer } from '@foxglove/ws-protocol';
 import WebSocket from 'ws';
 
 // Lazy import MCAP writer to avoid breaking dev server if absent
