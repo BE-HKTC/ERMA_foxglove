@@ -123,10 +123,7 @@ export default function LayoutsDialog({ open, onClose }: LayoutsDialogProps): JS
               }}
               secondaryAction={
                 <Stack direction="row" spacing={1}>
-                  <Button
-                    size="small"
-                    onClick={() => layoutActions.openSaved(layout.name, layout.target)}
-                  >
+                  <Button size="small" onClick={() => layoutActions.openSaved(layout)}>
                     {t("open")}
                   </Button>
                   <Button

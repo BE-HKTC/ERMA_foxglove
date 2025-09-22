@@ -25,6 +25,7 @@ type Config = {
   linearAxis: { x: number; y: number }; // axes indices for linear x (forward/back) and y (strafe)
   angularAxis: { z: number }; // axis index for angular z (turn)
   scale: { linear: number; angular: number };
+  deviceIndex: number; // -1 = auto (first connected), otherwise specific index
 };
 
 function clampDeadzone(value: number, dz: number): number {
@@ -34,7 +35,11 @@ function clampDeadzone(value: number, dz: number): number {
   return sign * Math.min(1, Math.max(0, t));
 }
 
-function buildSettingsTree(config: Config, topics: readonly Topic[]): SettingsTreeNodes {
+function buildSettingsTree(
+  config: Config,
+  topics: readonly Topic[],
+  devices: { label: string; value: number }[],
+): SettingsTreeNodes {
   const general: SettingsTreeNode = {
     label: "General",
     fields: {
@@ -48,6 +53,7 @@ function buildSettingsTree(config: Config, topics: readonly Topic[]): SettingsTr
       deadzone: { label: "Deadzone", input: "number", value: config.deadzone, step: 0.01, min: 0, max: 1 },
       linearScale: { label: "Linear scale", input: "number", value: config.scale.linear, step: 0.1 },
       angularScale: { label: "Angular scale", input: "number", value: config.scale.angular, step: 0.1 },
+      deviceIndex: { label: "Device", input: "select", value: config.deviceIndex, options: devices },
     },
     children: {
       axes: {
@@ -68,15 +74,17 @@ export default function GamepadPanel({ context }: Props): JSX.Element {
   const [renderDone, setRenderDone] = useState<() => void>(() => () => {});
 
   const [config, setConfig] = useState<Config>(() => {
-    const initial = (context.initialState ?? {}) as Partial<Config>;
+    const initial = (context.initialState ?? {}) as Partial<Config> & Record<string, unknown>;
     return {
+      ...initial,
       topic: initial.topic,
       publishRate: initial.publishRate ?? 20,
       deadzone: initial.deadzone ?? 0.15,
       linearAxis: initial.linearAxis ?? { x: 1, y: 0 }, // Xbox: left stick: axes[0]=x, axes[1]=y
       angularAxis: initial.angularAxis ?? { z: 0 }, // turn from left stick X by default
       scale: initial.scale ?? { linear: 1.0, angular: 1.0 },
-    };
+      deviceIndex: initial.deviceIndex ?? -1,
+    } as Config;
   });
 
   const settingsActionHandler = useCallback((action: SettingsTreeAction) => {
@@ -90,6 +98,8 @@ export default function GamepadPanel({ context }: Props): JSX.Element {
         next.scale = { ...next.scale, linear: Number(action.payload.value) };
       } else if (key === "angularScale") {
         next.scale = { ...next.scale, angular: Number(action.payload.value) };
+      } else if (key === "deviceIndex") {
+        next.deviceIndex = Number(action.payload.value);
       } else if (key === "axes") {
         // ignore
       } else if (key === "linearX") {
@@ -112,11 +122,34 @@ export default function GamepadPanel({ context }: Props): JSX.Element {
   }, [context]);
 
   // Update settings UI + persist state
+  // Track available gamepad devices for selection
+  const [deviceOptions, setDeviceOptions] = useState<{ label: string; value: number }[]>([
+    { label: "Auto (first connected)", value: -1 },
+  ]);
   useEffect(() => {
-    const tree = buildSettingsTree(config, topics);
+    function refreshDevices() {
+      const pads = navigator.getGamepads ? navigator.getGamepads() : [];
+      const opts: { label: string; value: number }[] = [{ label: "Auto (first connected)", value: -1 }];
+      for (let i = 0; i < (pads?.length ?? 0); i++) {
+        const p = pads?.[i];
+        if (p) opts.push({ label: `${i}: ${p.id}`, value: i });
+      }
+      setDeviceOptions(opts);
+    }
+    refreshDevices();
+    window.addEventListener("gamepadconnected", refreshDevices);
+    window.addEventListener("gamepaddisconnected", refreshDevices);
+    return () => {
+      window.removeEventListener("gamepadconnected", refreshDevices);
+      window.removeEventListener("gamepaddisconnected", refreshDevices);
+    };
+  }, []);
+
+  useEffect(() => {
+    const tree = buildSettingsTree(config, topics, deviceOptions);
     context.updatePanelSettingsEditor({ actionHandler: settingsActionHandler, nodes: tree });
     context.saveState(config);
-  }, [config, topics, context, settingsActionHandler]);
+  }, [config, topics, context, settingsActionHandler, deviceOptions]);
 
   // Advertise Twist topic
   useLayoutEffect(() => {
@@ -142,7 +175,12 @@ export default function GamepadPanel({ context }: Props): JSX.Element {
       lastPublishRef.current = time;
 
       const pads = navigator.getGamepads ? navigator.getGamepads() : [];
-      const pad = pads && pads.length > 0 ? pads[0] : undefined;
+      let pad: Gamepad | undefined;
+      if (config.deviceIndex != undefined && config.deviceIndex >= 0) {
+        pad = pads?.[config.deviceIndex!];
+      } else {
+        pad = pads && pads.length > 0 ? pads.find((p) => p != null) : undefined;
+      }
       if (!pad) return;
 
       const ax = (i: number) => (Number.isFinite(pad.axes[i]!) ? pad.axes[i]! : 0);
@@ -171,11 +209,17 @@ export default function GamepadPanel({ context }: Props): JSX.Element {
     const tick = () => {
       raf = requestAnimationFrame(tick);
       const pads = navigator.getGamepads ? navigator.getGamepads() : [];
-      const pad = pads && pads.length > 0 ? pads[0] : undefined;
+      let pad: Gamepad | undefined;
+      if (config.deviceIndex != undefined && config.deviceIndex >= 0) {
+        pad = pads?.[config.deviceIndex!];
+      } else {
+        pad = pads && pads.length > 0 ? pads.find((p) => p != null) : undefined;
+      }
       if (pad) {
         const axes = pad.axes.map((v) => v.toFixed(2)).join(", ");
         const buttons = pad.buttons.map((b) => (b.pressed ? "1" : "0")).join("");
-        setGamepadInfo(`${pad.id} | axes: [${axes}] | buttons: ${buttons}`);
+        const idx = Array.from(pads ?? []).findIndex((pp) => pp === pad);
+        setGamepadInfo(`${idx}: ${pad.id} | axes: [${axes}] | buttons: ${buttons}`);
       } else {
         setGamepadInfo("No gamepad");
       }
@@ -200,4 +244,3 @@ export default function GamepadPanel({ context }: Props): JSX.Element {
     </ThemeProvider>
   );
 }
-

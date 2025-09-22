@@ -63,8 +63,10 @@ function MapPanel(props: MapPanelProps): JSX.Element {
   const mapContainerRef = useRef<HTMLDivElement>(ReactNull);
 
   const [config, setConfig] = useState<Config>(() => {
-    const initialConfig = props.context.initialState as Partial<Config>;
+    const initialConfig = (props.context.initialState ?? {}) as Partial<Config> &
+      Record<string, unknown>;
     return {
+      ...initialConfig,
       center: initialConfig.center,
       customTileUrl: initialConfig.customTileUrl ?? "",
       disabledTopics: initialConfig.disabledTopics ?? [],
@@ -73,7 +75,9 @@ function MapPanel(props: MapPanelProps): JSX.Element {
       topicColors: initialConfig.topicColors ?? {},
       zoomLevel: initialConfig.zoomLevel,
       maxNativeZoom: initialConfig.maxNativeZoom ?? 18,
-    };
+      pinSize: initialConfig.pinSize ?? POINT_MARKER_RADIUS,
+      previewPinColor: initialConfig.previewPinColor,
+    } as Config;
   });
 
   const [tileLayer] = useState(

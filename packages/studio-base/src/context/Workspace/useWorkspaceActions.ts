@@ -41,6 +41,29 @@ import { useOpenFile } from "./useOpenFile";
 
 const log = Logger.getLogger(__filename);
 
+function slugifyTarget(target?: string): string | undefined {
+  if (!target) {
+    return undefined;
+  }
+  const slug = target
+    .replace(/[^a-z0-9]+/gi, "-")
+    .replace(/^-+|-+$/g, "")
+    .toLowerCase();
+  return slug.length > 0 ? slug : undefined;
+}
+
+function bridgeUrlForTarget(target?: string): string | undefined {
+  const slug = slugifyTarget(target);
+  if (!slug) {
+    return undefined;
+  }
+  if (typeof window === "undefined" || !window.location) {
+    return `/ws/${slug}`;
+  }
+  const proto = window.location.protocol === "https:" ? "wss" : "ws";
+  return `${proto}://${window.location.host}/ws/${slug}`;
+}
+
 export type SavedLayout = {
   name: string;
   createdAt: string;
@@ -107,7 +130,7 @@ export type WorkspaceActions = {
     // Fetch saved layout metadata from the server
     fetchSavedLayouts: () => Promise<SavedLayout[]>;
     // Open a saved layout in a new browser tab
-    openSaved: (name: string, target?: string) => void;
+    openSaved: (layout: SavedLayout) => void;
 
     // Delete a saved layout on the server
     delete: (name: string) => Promise<void>;
@@ -221,7 +244,13 @@ export function useWorkspaceActions(): WorkspaceActions {
   }, [analytics, getCurrentLayoutState]);
 
 
-  const shareLayout = useCallbackWithToast(async (rawName?: string, targetName?: string) => {
+  const shareLayout = useCallbackWithToast(
+    async (
+      rawName?: string,
+      targetName?: string,
+      retentionEnabled?: boolean,
+      topicsCsv?: string,
+    ) => {
 
     const layoutData = getCurrentLayoutState().selectedLayout?.data;
     if (!layoutData) {
@@ -231,13 +260,22 @@ export function useWorkspaceActions(): WorkspaceActions {
     const baseName = rawName ?? getCurrentLayoutState().selectedLayout?.name ?? `layout-${Date.now()}`;
     const safeName = baseName.replace(/[^a-z0-9._-]/gi, "_");
     log.debug("shareLayout: uploading", safeName);
+    const headers: Record<string, string> = {
+      "Content-Type": "application/json",
+    };
+    if (targetName != undefined) {
+      headers["X-Layout-Target"] = targetName.trim();
+    }
+    if (retentionEnabled != undefined) {
+      headers["X-Layout-Retention"] = String(Boolean(retentionEnabled));
+    }
+    if (topicsCsv != undefined) {
+      headers["X-Layout-Topics"] = topicsCsv;
+    }
+
     const response = await fetch(`/layouts/${safeName}.json`, {
       method: "PUT",
-      headers: {
-        "Content-Type": "application/json",
-        ...(targetName ? { "X-Layout-Target": targetName } : {}),
-      },
-
+      headers,
       body: JSON.stringify(layoutData),
     });
     if (!response.ok) {
@@ -252,7 +290,9 @@ export function useWorkspaceActions(): WorkspaceActions {
     log.debug("shareLayout: copied URL", shareUrl.href);
     enqueueSnackbar("Copied layout URL to clipboard", { variant: "success" });
     void analytics.logEvent(AppEvent.LAYOUT_SHARE);
-  }, [analytics, enqueueSnackbar, getCurrentLayoutState]);
+    },
+    [analytics, enqueueSnackbar, getCurrentLayoutState],
+  );
 
   const saveLayout = useCallback(async (rawName?: string, targetName?: string, retentionEnabled?: boolean, topicsCsv?: string) => {
     const layoutData = getCurrentLayoutState().selectedLayout?.data;
@@ -267,14 +307,22 @@ export function useWorkspaceActions(): WorkspaceActions {
 
     const safeName = baseName.replace(/[^a-z0-9._-]/gi, "_");
     log.debug("saveLayout: saving", safeName);
+    const headers: Record<string, string> = {
+      "Content-Type": "application/json",
+    };
+    if (targetName != undefined) {
+      headers["X-Layout-Target"] = targetName.trim();
+    }
+    if (retentionEnabled != undefined) {
+      headers["X-Layout-Retention"] = String(Boolean(retentionEnabled));
+    }
+    if (topicsCsv != undefined) {
+      headers["X-Layout-Topics"] = topicsCsv;
+    }
+
     const response = await fetch(`/layouts/${safeName}.json`, {
       method: "PUT",
-      headers: {
-        "Content-Type": "application/json",
-        ...(targetName ? { "X-Layout-Target": targetName } : {}),
-        ...(retentionEnabled != undefined ? { "X-Layout-Retention": String(Boolean(retentionEnabled)) } : {}),
-        ...(topicsCsv && topicsCsv.trim().length > 0 ? { "X-Layout-Topics": topicsCsv } : {}),
-      },
+      headers,
 
       body: JSON.stringify(layoutData),
     });
@@ -310,12 +358,18 @@ export function useWorkspaceActions(): WorkspaceActions {
     [enqueueSnackbar],
   );
 
-  const openSavedLayout = useCallback((name: string, targetName?: string) => {
-    log.debug("openSavedLayout: opening", name, targetName);
+  const openSavedLayout = useCallback((layout: SavedLayout) => {
+    const { name, target, retention } = layout;
+    log.debug("openSavedLayout: opening", name, target, retention);
+    const bridgeUrl = retention ? bridgeUrlForTarget(target) : undefined;
+    const connectionUrl = bridgeUrl ?? target;
     const url = updateAppURLState(new URL(window.location.href), {
       layout: name,
-      ...(targetName
-        ? { ds: "foxglove-websocket", dsParams: { url: targetName } }
+      ...(connectionUrl
+        ? {
+            ds: "foxglove-websocket",
+            dsParams: { url: connectionUrl },
+          }
         : {}),
     });
 

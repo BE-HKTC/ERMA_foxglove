@@ -114,29 +114,36 @@ const server = http.createServer(async (req, res) => {
             const now = new Date().toISOString();
             const index = await readIndex();
             const existing = index.find((item) => item.name === name);
-            const targetName = req.headers['x-layout-target'];
+            const targetHeader = req.headers['x-layout-target'];
+            const hasTargetHeader = typeof targetHeader === 'string';
+            const targetRaw = hasTargetHeader ? targetHeader.trim() : undefined;
+            const targetName = targetRaw && targetRaw.length > 0 ? targetRaw : undefined;
             const retentionHeader = req.headers['x-layout-retention'];
             const topicsHeader = req.headers['x-layout-topics'];
+            const topicsList =
+              typeof topicsHeader === 'string'
+                ? topicsHeader
+                    .split(',')
+                    .map((s) => s.trim())
+                    .filter((s) => s.length > 0)
+                : undefined;
             if (existing) {
               existing.updatedAt = now;
-              if (typeof targetName === 'string') {
+              if (hasTargetHeader) {
                 existing.target = targetName;
               }
               if (typeof retentionHeader === 'string') {
                 existing.retention = retentionHeader === 'true';
               }
-              if (typeof topicsHeader === 'string') {
-                const list = topicsHeader.split(',').map((s) => s.trim()).filter(Boolean);
-                existing.topics = list.length > 0 ? list : undefined;
+              if (topicsList != undefined) {
+                existing.topics = topicsList.length > 0 ? topicsList : undefined;
               }
             } else {
               index.push({
                 name,
-                target: typeof targetName === 'string' ? targetName : undefined,
+                target: hasTargetHeader ? targetName : undefined,
                 retention: typeof retentionHeader === 'string' ? retentionHeader === 'true' : undefined,
-                topics: typeof topicsHeader === 'string'
-                  ? (topicsHeader.split(',').map((s) => s.trim()).filter(Boolean) || undefined)
-                  : undefined,
+                topics: topicsList && topicsList.length > 0 ? topicsList : undefined,
                 createdAt: now,
                 updatedAt: now,
               });
