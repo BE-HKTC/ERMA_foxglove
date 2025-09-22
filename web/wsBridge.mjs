@@ -408,6 +408,8 @@ export class TargetManager {
       }
     });
     this.client.on('message', (msg) => {
+      // eslint-disable-next-line no-console
+      console.log(`[${this.slug}] received message channel ${msg.channelId} len ${msg.data?.byteLength ?? 0}`);
       const ch = this.channels.get(msg.channelId);
       if (!ch) return;
       if (this.topicsWhitelist && !this.topicsWhitelist.has(ch.topic)) return;
