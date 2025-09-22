@@ -111,11 +111,21 @@ export class TargetManager {
     this.mcapChannelIds = new Map(); // upstreamId -> channelId
     this.channelSeq = new Map(); // channelId -> sequence
     this.topicsWhitelist = Array.isArray(topics) && topics.length > 0 ? new Set(topics) : undefined;
+    this.#loggedDir = false;
+    this.#loggedChannels = undefined;
   }
+
+  #loggedDir;
+  #loggedChannels;
 
   async #ensureDirs() {
     const dir = path.join(this.dataDir, this.slug);
     await fs.mkdir(dir, { recursive: true });
+    if (!this.#loggedDir) {
+      // eslint-disable-next-line no-console
+      console.log(`[${this.slug}] data dir ${dir}`);
+      this.#loggedDir = true;
+    }
     return dir;
   }
 
@@ -299,6 +309,14 @@ export class TargetManager {
       arr.sort((a, b) => (a.t < b.t ? -1 : a.t > b.t ? 1 : 0));
     }
 
+    if (history.size > 0) {
+      // eslint-disable-next-line no-console
+      console.log(`[${this.slug}] loaded history for ${history.size} topics from disk`);
+    } else {
+      // eslint-disable-next-line no-console
+      console.log(`[${this.slug}] no disk history for requested window`);
+    }
+
     return history;
   }
 
@@ -429,16 +447,27 @@ export class TargetManager {
       publishTime: t,
       data: payload,
     });
+    if (!this.#loggedChannels?.has(ch.topic)) {
+      this.#loggedChannels ??= new Set();
+      this.#loggedChannels.add(ch.topic);
+      // eslint-disable-next-line no-console
+      console.log(`[${this.slug}] writing MCAP for ${ch.topic}`);
+    }
   }
 
   #storeRing(topic, timestamp, payload) {
     const arr = this.ring.get(topic) || [];
+    const firstForTopic = arr.length === 0;
     arr.push({ t: BigInt(timestamp), p: new Uint8Array(payload) });
     const cutoff = BigInt(Date.now() - this.maxRingMs) * 1_000_000n; // ns
     while (arr.length > 0 && arr[0].t < cutoff) {
       arr.shift();
     }
     this.ring.set(topic, arr);
+    if (firstForTopic) {
+      // eslint-disable-next-line no-console
+      console.log(`[${this.slug}] ring storing topic ${topic}`);
+    }
   }
 
   async attachClientServer(fgServer, { lookback }) {
@@ -481,6 +510,8 @@ export class TargetManager {
       if (!topic) return;
       const diskMessages = persistedHistory.get(topic);
       if (diskMessages && diskMessages.length > 0) {
+        // eslint-disable-next-line no-console
+        console.log(`[${this.slug}] replaying ${diskMessages.length} disk messages for ${topic}`);
         for (const { t, p } of diskMessages) {
           if (t >= earliest) {
             fgServer.sendMessage(serverChanId, t, p);
@@ -489,6 +520,8 @@ export class TargetManager {
       }
       const arr = this.ring.get(topic);
       if (!arr || arr.length === 0) return;
+      // eslint-disable-next-line no-console
+      console.log(`[${this.slug}] replaying ${arr.length} ring messages for ${topic}`);
       for (const { t, p } of arr) {
         if (t >= earliest) {
           fgServer.sendMessage(serverChanId, t, p);

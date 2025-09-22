@@ -8,8 +8,10 @@ const { FoxgloveServer, FoxgloveClient } = wsProtocol;
 import { TargetRegistry } from './wsBridge.mjs';
 
 const publicDir = path.join(process.cwd(), 'public');
-const layoutsDir = process.env.LAYOUTS_DIR || path.join(process.cwd(), 'layouts');
-const dataDir = process.env.DATA_DIR || path.join(process.cwd(), 'data');
+const defaultLayoutsDir = '/foxglove/layouts';
+const defaultDataDir = '/foxglove/data';
+const layoutsDir = process.env.LAYOUTS_DIR || (await fs.access(defaultLayoutsDir).then(() => defaultLayoutsDir).catch(() => path.join(process.cwd(), 'layouts')));
+const dataDir = process.env.DATA_DIR || (await fs.access(defaultDataDir).then(() => defaultDataDir).catch(() => path.join(process.cwd(), 'data')));
 const indexPath = path.join(layoutsDir, 'index.json');
 
 async function readIndex() {
