@@ -113,6 +113,7 @@ export class TargetManager {
     this.topicsWhitelist = Array.isArray(topics) && topics.length > 0 ? new Set(topics) : undefined;
     this.#loggedDir = false;
     this.#loggedChannels = undefined;
+    this.subscribedChannelIds = new Set();
   }
 
   #loggedDir;
@@ -150,10 +151,33 @@ export class TargetManager {
     try { this.client?.close(); } catch {}
     clearInterval(this.retentionTimer);
     await this.#closeWriter();
+    this.subscribedChannelIds.clear();
   }
 
   setTopicsWhitelist(topics) {
     this.topicsWhitelist = Array.isArray(topics) && topics.length > 0 ? new Set(topics) : undefined;
+    if (!this.client) {
+      return;
+    }
+    const subs = [];
+    this.subscribedChannelIds.clear();
+    for (const [id, ch] of this.channels) {
+      if (this.topicsWhitelist && !this.topicsWhitelist.has(ch.topic)) {
+        continue;
+      }
+      subs.push({ channelId: id });
+      this.subscribedChannelIds.add(id);
+    }
+    if (subs.length > 0) {
+      try {
+        this.client.subscribe(subs);
+        // eslint-disable-next-line no-console
+        console.log(`[${this.slug}] refreshed subscriptions (${subs.length})`);
+      } catch (err) {
+        // eslint-disable-next-line no-console
+        console.error(`[${this.slug}] refresh subscribe failed`, err);
+      }
+    }
   }
 
   async #openWriter(filePath) {
@@ -341,9 +365,11 @@ export class TargetManager {
     this.client.on('close', () => {
       // eslint-disable-next-line no-console
       console.warn(`[${this.slug}] upstream closed, retrying...`);
+      this.subscribedChannelIds.clear();
       setTimeout(() => this.#connectUpstream(), 2000);
     });
     this.client.on('advertise', (channels) => {
+      const subs = [];
       for (const ch of channels) {
         // If whitelist is set, ignore channels not in whitelist
         if (this.topicsWhitelist && !this.topicsWhitelist.has(ch.topic)) {
@@ -352,11 +378,26 @@ export class TargetManager {
         this.channels.set(ch.id, ch);
         // Pre-register in MCAP for current segment
         this.#ensureMcapChannel(ch.id, ch).catch(() => {});
+        if (!this.subscribedChannelIds.has(ch.id)) {
+          subs.push({ channelId: ch.id });
+          this.subscribedChannelIds.add(ch.id);
+        }
+      }
+      if (subs.length > 0) {
+        try {
+          this.client?.subscribe(subs);
+          // eslint-disable-next-line no-console
+          console.log(`[${this.slug}] subscribed to ${subs.length} channels`);
+        } catch (err) {
+          // eslint-disable-next-line no-console
+          console.error(`[${this.slug}] subscribe failed`, err);
+        }
       }
     });
     this.client.on('unadvertise', (removed) => {
       for (const id of removed) {
         this.channels.delete(id);
+        this.subscribedChannelIds.delete(id);
       }
     });
     this.client.on('message', (msg) => {
