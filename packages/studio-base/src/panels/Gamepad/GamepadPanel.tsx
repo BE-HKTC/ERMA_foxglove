@@ -35,6 +35,20 @@ function clampDeadzone(value: number, dz: number): number {
   return sign * Math.min(1, Math.max(0, t));
 }
 
+function selectGamepad(
+  pads: readonly (Gamepad | null)[] | undefined,
+  deviceIndex: number | undefined,
+): Gamepad | undefined {
+  if (!pads) {
+    return undefined;
+  }
+  if (deviceIndex != undefined && deviceIndex >= 0) {
+    const candidate = pads[deviceIndex];
+    return candidate ?? undefined;
+  }
+  return pads.find((pad): pad is Gamepad => pad != null);
+}
+
 function buildSettingsTree(
   config: Config,
   topics: readonly Topic[],
@@ -174,16 +188,15 @@ export default function GamepadPanel({ context }: Props): JSX.Element {
       if (time - lastPublishRef.current < intervalMs) return;
       lastPublishRef.current = time;
 
-      const pads = navigator.getGamepads ? navigator.getGamepads() : [];
-      let pad: Gamepad | undefined;
-      if (config.deviceIndex != undefined && config.deviceIndex >= 0) {
-        pad = pads?.[config.deviceIndex!];
-      } else {
-        pad = pads && pads.length > 0 ? pads.find((p) => p != null) : undefined;
-      }
+      const padEntries = navigator.getGamepads ? Array.from(navigator.getGamepads()) : [];
+      const pad = selectGamepad(padEntries, config.deviceIndex);
       if (!pad) return;
 
-      const ax = (i: number) => (Number.isFinite(pad.axes[i]!) ? pad.axes[i]! : 0);
+      const activePad = pad;
+      const ax = (i: number) => {
+        const value = activePad.axes[i];
+        return typeof value === "number" && Number.isFinite(value) ? value : 0;
+      };
       // Xbox left stick: axes[0] (left/right), axes[1] (up/down). Invert Y to make up positive.
       const x = clampDeadzone(-ax(config.linearAxis.x), config.deadzone) * config.scale.linear;
       const z = clampDeadzone(ax(config.angularAxis.z), config.deadzone) * config.scale.angular;
@@ -208,17 +221,12 @@ export default function GamepadPanel({ context }: Props): JSX.Element {
     let raf = 0;
     const tick = () => {
       raf = requestAnimationFrame(tick);
-      const pads = navigator.getGamepads ? navigator.getGamepads() : [];
-      let pad: Gamepad | undefined;
-      if (config.deviceIndex != undefined && config.deviceIndex >= 0) {
-        pad = pads?.[config.deviceIndex!];
-      } else {
-        pad = pads && pads.length > 0 ? pads.find((p) => p != null) : undefined;
-      }
+      const padEntries = navigator.getGamepads ? Array.from(navigator.getGamepads()) : [];
+      const pad = selectGamepad(padEntries, config.deviceIndex);
       if (pad) {
         const axes = pad.axes.map((v) => v.toFixed(2)).join(", ");
         const buttons = pad.buttons.map((b) => (b.pressed ? "1" : "0")).join("");
-        const idx = Array.from(pads ?? []).findIndex((pp) => pp === pad);
+        const idx = padEntries.findIndex((pp) => pp === pad);
         setGamepadInfo(`${idx}: ${pad.id} | axes: [${axes}] | buttons: ${buttons}`);
       } else {
         setGamepadInfo("No gamepad");

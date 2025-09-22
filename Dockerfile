@@ -5,7 +5,7 @@ WORKDIR /src
 COPY . ./
 
 RUN corepack enable && corepack prepare yarn@3.6.3 --activate && corepack prepare yarn@3.6.3 --activate && corepack prepare yarn@3.6.3 --activate
-RUN yarn install --immutable
+RUN yarn install
 
 RUN yarn run web:build:prod
 
