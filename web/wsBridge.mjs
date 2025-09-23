@@ -113,12 +113,14 @@ export class TargetManager {
     this.topicsWhitelist = Array.isArray(topics) && topics.length > 0 ? new Set(topics) : undefined;
     this.#loggedDir = false;
     this.#loggedChannels = undefined;
+    this.#missingWriterWarnedTopics = new Set();
     this.subscriptionByChannel = new Map();
     this.subscriptionInfo = new Map();
   }
 
   #loggedDir;
   #loggedChannels;
+  #missingWriterWarnedTopics;
   subscriptionByChannel;
   subscriptionInfo;
 
@@ -220,6 +222,7 @@ export class TargetManager {
       this.mcapSchemaIds.clear();
       this.mcapChannelIds.clear();
       this.channelSeq.clear();
+      this.#missingWriterWarnedTopics.clear();
     } catch (err) {
       console.warn('MCAP writer init failed:', err);
       this.writer = undefined;
@@ -505,8 +508,11 @@ export class TargetManager {
 
   async #writeMcapMessage(upstreamId, ch, timestampBigInt, payload) {
     if (!this.writer) {
-      // eslint-disable-next-line no-console
-      console.warn(`[${this.slug}] writer missing, dropping message for ${ch.topic}`);
+      if (ch?.topic && !this.#missingWriterWarnedTopics.has(ch.topic)) {
+        this.#missingWriterWarnedTopics.add(ch.topic);
+        // eslint-disable-next-line no-console
+        console.warn(`[${this.slug}] writer missing, dropping message for ${ch.topic}`);
+      }
       return;
     }
     await this.#ensureMcapChannel(upstreamId, ch);
