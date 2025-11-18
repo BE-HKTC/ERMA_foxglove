@@ -14,15 +14,12 @@ FROM node:18-alpine
 WORKDIR /app
 
 ENV LAYOUTS_DIR=/foxglove/layouts
-ENV DATA_DIR=/foxglove/data
 
 COPY --from=build /src/web/.webpack ./public
 COPY --from=build /src/node_modules ./node_modules
 COPY web/server.mjs ./server.mjs
-COPY web/wsBridge.mjs ./wsBridge.mjs
 
 VOLUME ["/foxglove/layouts"]
-VOLUME ["/foxglove/data"]
 
 EXPOSE 8080
 

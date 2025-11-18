@@ -41,36 +41,11 @@ import { useOpenFile } from "./useOpenFile";
 
 const log = Logger.getLogger(__filename);
 
-function slugifyTarget(target?: string): string | undefined {
-  if (!target) {
-    return undefined;
-  }
-  const slug = target
-    .replace(/[^a-z0-9]+/gi, "-")
-    .replace(/^-+|-+$/g, "")
-    .toLowerCase();
-  return slug.length > 0 ? slug : undefined;
-}
-
-function bridgeUrlForTarget(target?: string): string | undefined {
-  const slug = slugifyTarget(target);
-  if (!slug) {
-    return undefined;
-  }
-  if (!window.location) {
-    return `/ws/${slug}`;
-  }
-  const proto = window.location.protocol === "https:" ? "wss" : "ws";
-  return `${proto}://${window.location.host}/ws/${slug}`;
-}
-
 export type SavedLayout = {
   name: string;
   createdAt: string;
   updatedAt: string;
   target?: string;
-  retention?: boolean;
-  topics?: string[];
 };
 
 export type WorkspaceActions = {
@@ -124,9 +99,9 @@ export type WorkspaceActions = {
     // This will perform a browser download of the current layout to a file
     exportToFile: () => void;
     // Upload the current layout to the server and copy a shareable URL
-    share: (name?: string, target?: string, retentionEnabled?: boolean, topicsCsv?: string) => void;
+    share: (name?: string, target?: string) => void;
     // Save the current layout to the server without copying a URL
-    save: (name?: string, target?: string, retentionEnabled?: boolean, topicsCsv?: string) => Promise<void>;
+    save: (name?: string, target?: string) => Promise<void>;
     // Fetch saved layout metadata from the server
     fetchSavedLayouts: () => Promise<SavedLayout[]>;
     // Open a saved layout in a new browser tab
@@ -245,93 +220,79 @@ export function useWorkspaceActions(): WorkspaceActions {
 
 
   const shareLayout = useCallbackWithToast(
-    async (
-      rawName?: string,
-      targetName?: string,
-      retentionEnabled?: boolean,
-      topicsCsv?: string,
-    ) => {
+    async (rawName?: string, targetName?: string) => {
+      const layoutData = getCurrentLayoutState().selectedLayout?.data;
+      if (!layoutData) {
+        return;
+      }
 
-    const layoutData = getCurrentLayoutState().selectedLayout?.data;
-    if (!layoutData) {
-      return;
-    }
+      const baseName =
+        rawName ?? getCurrentLayoutState().selectedLayout?.name ?? `layout-${Date.now()}`;
+      const safeName = baseName.replace(/[^a-z0-9._-]/gi, "_");
+      log.debug("shareLayout: uploading", safeName);
+      const headers: Record<string, string> = {
+        "Content-Type": "application/json",
+      };
+      if (targetName != undefined) {
+        headers["X-Layout-Target"] = targetName.trim();
+      }
 
-    const baseName = rawName ?? getCurrentLayoutState().selectedLayout?.name ?? `layout-${Date.now()}`;
-    const safeName = baseName.replace(/[^a-z0-9._-]/gi, "_");
-    log.debug("shareLayout: uploading", safeName);
-    const headers: Record<string, string> = {
-      "Content-Type": "application/json",
-    };
-    if (targetName != undefined) {
-      headers["X-Layout-Target"] = targetName.trim();
-    }
-    if (retentionEnabled != undefined) {
-      headers["X-Layout-Retention"] = String(Boolean(retentionEnabled));
-    }
-    if (topicsCsv != undefined) {
-      headers["X-Layout-Topics"] = topicsCsv;
-    }
+      const response = await fetch(`/layouts/${safeName}.json`, {
+        method: "PUT",
+        headers,
+        body: JSON.stringify(layoutData),
+      });
+      if (!response.ok) {
+        log.error("shareLayout: upload failed", response.status, response.statusText);
+        throw new Error(`Failed to save layout: ${response.statusText}`);
+      }
 
-    const response = await fetch(`/layouts/${safeName}.json`, {
-      method: "PUT",
-      headers,
-      body: JSON.stringify(layoutData),
-    });
-    if (!response.ok) {
-      log.error("shareLayout: upload failed", response.status, response.statusText);
-      throw new Error(`Failed to save layout: ${response.statusText}`);
-    }
-
-    const shareUrl = updateAppURLState(new URL(window.location.href), {
-      layout: safeName,
-    });
-    await clipboard.copy(shareUrl.href);
-    log.debug("shareLayout: copied URL", shareUrl.href);
-    enqueueSnackbar("Copied layout URL to clipboard", { variant: "success" });
-    void analytics.logEvent(AppEvent.LAYOUT_SHARE);
+      const shareUrl = updateAppURLState(new URL(window.location.href), {
+        layout: safeName,
+      });
+      await clipboard.copy(shareUrl.href);
+      log.debug("shareLayout: copied URL", shareUrl.href);
+      enqueueSnackbar("Copied layout URL to clipboard", { variant: "success" });
+      void analytics.logEvent(AppEvent.LAYOUT_SHARE);
     },
     [analytics, enqueueSnackbar, getCurrentLayoutState],
   );
 
-  const saveLayout = useCallback(async (rawName?: string, targetName?: string, retentionEnabled?: boolean, topicsCsv?: string) => {
-    const layoutData = getCurrentLayoutState().selectedLayout?.data;
-    if (!layoutData) {
-      return;
-    }
+  const saveLayout = useCallback(
+    async (rawName?: string, targetName?: string) => {
+      const layoutData = getCurrentLayoutState().selectedLayout?.data;
+      if (!layoutData) {
+        return;
+      }
 
-    const baseName = rawName ?? prompt("Enter layout name");
-    if (!baseName) {
-      return;
-    }
+      const baseName = rawName ?? prompt("Enter layout name");
+      if (!baseName) {
+        return;
+      }
 
-    const safeName = baseName.replace(/[^a-z0-9._-]/gi, "_");
-    log.debug("saveLayout: saving", safeName);
-    const headers: Record<string, string> = {
-      "Content-Type": "application/json",
-    };
-    if (targetName != undefined) {
-      headers["X-Layout-Target"] = targetName.trim();
-    }
-    if (retentionEnabled != undefined) {
-      headers["X-Layout-Retention"] = String(Boolean(retentionEnabled));
-    }
-    if (topicsCsv != undefined) {
-      headers["X-Layout-Topics"] = topicsCsv;
-    }
+      const safeName = baseName.replace(/[^a-z0-9._-]/gi, "_");
+      log.debug("saveLayout: saving", safeName);
+      const headers: Record<string, string> = {
+        "Content-Type": "application/json",
+      };
+      if (targetName != undefined) {
+        headers["X-Layout-Target"] = targetName.trim();
+      }
 
-    const response = await fetch(`/layouts/${safeName}.json`, {
-      method: "PUT",
-      headers,
+      const response = await fetch(`/layouts/${safeName}.json`, {
+        method: "PUT",
+        headers,
 
-      body: JSON.stringify(layoutData),
-    });
-    if (!response.ok) {
-      log.error("saveLayout: upload failed", response.status, response.statusText);
-      throw new Error(`Failed to save layout: ${response.statusText}`);
-    }
-    enqueueSnackbar("Layout saved", { variant: "success" });
-  }, [enqueueSnackbar, getCurrentLayoutState]);
+        body: JSON.stringify(layoutData),
+      });
+      if (!response.ok) {
+        log.error("saveLayout: upload failed", response.status, response.statusText);
+        throw new Error(`Failed to save layout: ${response.statusText}`);
+      }
+      enqueueSnackbar("Layout saved", { variant: "success" });
+    },
+    [enqueueSnackbar, getCurrentLayoutState],
+  );
 
   const fetchSavedLayouts = useCallback(async (): Promise<SavedLayout[]> => {
     log.debug("fetchSavedLayouts: requesting index");
@@ -359,16 +320,14 @@ export function useWorkspaceActions(): WorkspaceActions {
   );
 
   const openSavedLayout = useCallback((layout: SavedLayout) => {
-    const { name, target, retention } = layout;
-    log.debug("openSavedLayout: opening", name, target, retention);
-    const bridgeUrl = retention ? bridgeUrlForTarget(target) : undefined;
-    const connectionUrl = bridgeUrl ?? target;
+    const { name, target } = layout;
+    log.debug("openSavedLayout: opening", name, target);
     const url = updateAppURLState(new URL(window.location.href), {
       layout: name,
-      ...(connectionUrl
+      ...(target
         ? {
             ds: "foxglove-websocket",
-            dsParams: { url: connectionUrl },
+            dsParams: { url: target },
           }
         : {}),
     });
