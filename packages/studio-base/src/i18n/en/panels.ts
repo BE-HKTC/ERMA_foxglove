@@ -21,6 +21,8 @@ export const panels = {
   logDescription: "Display logs by node and severity level.",
   map: "Map",
   mapDescription: "Display points on a map.",
+  button: "Button",
+  buttonDescription: "Publish a configured message with a single click.",
   parameters: "Parameters",
   parametersDescription: "Read and set parameters for a data source.",
   plot: "Plot",

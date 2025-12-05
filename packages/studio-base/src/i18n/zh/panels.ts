@@ -23,6 +23,8 @@ export const panels: Partial<TypeOptions["resources"]["panels"]> = {
   logDescription: "按节点和严重程度级别显示日志。",
   map: "地图",
   mapDescription: "在地图上显示点。",
+  button: "按钮",
+  buttonDescription: "单击即可发布预先配置的消息。",
   parameters: "参数",
   parametersDescription: "读取和设置数据源的参数。",
   plot: "图表",

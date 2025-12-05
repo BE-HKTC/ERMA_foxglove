@@ -24,6 +24,8 @@ export const panels: Partial<TypeOptions["resources"]["panels"]> = {
   logDescription: "ノードと重要度レベル別にログを表示します。",
   map: "地図",
   mapDescription: "地図上に点を表示します。",
+  button: "ボタン",
+  buttonDescription: "クリックで設定されたメッセージを送信します。",
   parameters: "パラメーター",
   parametersDescription: "データソースのパラメーターを読み取り、設定します。",
   plot: "プロット",
