@@ -24,6 +24,8 @@ export const panels: Partial<TypeOptions["resources"]["panels"]> = {
   logDescription: "ノードと重要度レベル別にログを表示します。",
   map: "地図",
   mapDescription: "地図上に点を表示します。",
+  joystick: "ジョイスティック",
+  joystickDescription: "ゲームパッド、キーボード、タッチ操作からJoyメッセージを表示/送信します。",
   button: "ボタン",
   buttonDescription: "クリックで設定されたメッセージを送信します。",
   parameters: "パラメーター",

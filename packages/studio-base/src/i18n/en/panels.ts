@@ -21,6 +21,8 @@ export const panels = {
   logDescription: "Display logs by node and severity level.",
   map: "Map",
   mapDescription: "Display points on a map.",
+  joystick: "Joystick",
+  joystickDescription: "View or publish Joy messages from a gamepad, keyboard, or interactive overlay.",
   button: "Button",
   buttonDescription: "Publish a configured message with a single click.",
   parameters: "Parameters",

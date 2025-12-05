@@ -23,6 +23,8 @@ export const panels: Partial<TypeOptions["resources"]["panels"]> = {
   logDescription: "按节点和严重程度级别显示日志。",
   map: "地图",
   mapDescription: "在地图上显示点。",
+  joystick: "摇杆",
+  joystickDescription: "使用手柄、键盘或交互式界面查看/发布 Joy 消息。",
   button: "按钮",
   buttonDescription: "单击即可发布预先配置的消息。",
   parameters: "参数",

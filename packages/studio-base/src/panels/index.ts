@@ -22,6 +22,7 @@ import tabThumbnail from "./Tab/thumbnail.png";
 import tableThumbnail from "./Table/thumbnail.png";
 import teleopThumbnail from "./Teleop/thumbnail.png";
 import gamepadThumbnail from "./Teleop/thumbnail.png";
+import joystickThumbnail from "./Teleop/thumbnail.png";
 import threeDeeRenderThumbnail from "./ThreeDeeRender/thumbnail.png";
 import topicGraphThumbnail from "./TopicGraph/thumbnail.png";
 import variableSliderThumbnail from "./VariableSlider/thumbnail.png";
@@ -93,6 +94,13 @@ export const getBuiltin: (t: TFunction<"panels">) => PanelInfo[] = (t) => [
     description: t("gamepadDescription"),
     thumbnail: gamepadThumbnail,
     module: async () => await import("./Gamepad"),
+  },
+  {
+    title: t("joystick"),
+    type: "Joystick",
+    description: t("joystickDescription"),
+    thumbnail: joystickThumbnail,
+    module: async () => await import("./Joystick"),
   },
   {
     title: t("map"),
