@@ -52,10 +52,7 @@ export function settingsActionReducer(prevConfig: Config, action: SettingsTreeAc
 function joyTopics(topics?: readonly Topic[]) {
   return (topics ?? []).filter(
     (topic) =>
-      topic.schemaName === "sensor_msgs/Joy" ||
-      topic.schemaName === "sensor_msgs/msg/Joy" ||
-      topic.datatype === "sensor_msgs/Joy" ||
-      topic.datatype === "sensor_msgs/msg/Joy",
+      topic.schemaName === "sensor_msgs/msg/Joy" || topic.datatype === "sensor_msgs/msg/Joy",
   );
 }
 
