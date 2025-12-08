@@ -38,7 +38,7 @@ type KbMap = {
   value: number;
 };
 
-function buildJoyDatatypes(profile?: string): { schemaName: string; datatypes?: RosDatatypes } {
+function buildJoyDatatypes(): { schemaName: string; datatypes?: RosDatatypes } {
   const datatypes: RosDatatypes = new Map();
 
   // ROS 2 only
@@ -93,10 +93,7 @@ export function JoyPanel({ context }: { context: PanelExtensionContext }): JSX.E
     };
   });
 
-  const joyAdvertisement = useMemo(
-    () => buildJoyDatatypes(context.dataSourceProfile),
-    [context.dataSourceProfile],
-  );
+  const joyAdvertisement = useMemo(() => buildJoyDatatypes(), []);
 
   const settingsActionHandler = useCallback(
     (action: SettingsTreeAction) => {
