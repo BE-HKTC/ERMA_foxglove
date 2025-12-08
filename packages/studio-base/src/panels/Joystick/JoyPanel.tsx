@@ -9,6 +9,7 @@
 //   Copyright 2022 Ryan Govostes
 //   Licensed under the MIT license (see LICENSE file in the original project)
 
+import { MessageDefinition } from "@foxglove/message-definition";
 import { fromDate } from "@foxglove/rostime";
 import CommonRosTypes from "@foxglove/rosmsg-msgs-common";
 import {
@@ -43,17 +44,27 @@ function buildJoyDatatypes(profile?: string): { schemaName: string; datatypes?: 
   const schemaName = isRos2 ? "sensor_msgs/msg/Joy" : "sensor_msgs/Joy";
   const headerName = isRos2 ? "std_msgs/msg/Header" : "std_msgs/Header";
   const timeName = isRos2 ? "builtin_interfaces/msg/Time" : "time";
-  const commonTypes = isRos2 ? CommonRosTypes.ros2galactic : CommonRosTypes.ros1;
+  const commonTypes = (isRos2 ? CommonRosTypes.ros2galactic : CommonRosTypes.ros1) as Record<
+    string,
+    MessageDefinition
+  >;
 
   const datatypes: RosDatatypes = new Map();
-  if (commonTypes?.[schemaName]) {
-    datatypes.set(schemaName, commonTypes[schemaName]);
-  }
-  if (commonTypes?.[headerName]) {
-    datatypes.set(headerName, commonTypes[headerName]);
-  }
-  if (commonTypes?.[timeName]) {
-    datatypes.set(timeName, commonTypes[timeName]);
+  const candidateNames = new Set<string>([
+    schemaName,
+    headerName,
+    timeName,
+    // fallback ROS1 names for ROS2 profiles (and vice versa) in case the map contains only one form
+    isRos2 ? "sensor_msgs/Joy" : "sensor_msgs/msg/Joy",
+    isRos2 ? "std_msgs/Header" : "std_msgs/msg/Header",
+    isRos2 ? "builtin_interfaces/Time" : "builtin_interfaces/msg/Time",
+  ]);
+
+  for (const name of candidateNames) {
+    const def = commonTypes?.[name];
+    if (def) {
+      datatypes.set(name, def);
+    }
   }
 
   return { schemaName, datatypes: datatypes.size > 0 ? datatypes : undefined };
