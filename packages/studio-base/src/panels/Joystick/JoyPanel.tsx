@@ -75,6 +75,7 @@ export function JoyPanel({ context }: { context: PanelExtensionContext }): JSX.E
   const [messages, setMessages] = useState<undefined | Immutable<MessageEvent[]>>();
   const [joy, setJoy] = useState<Joy | undefined>();
   const [pubTopic, setPubTopic] = useState<string | undefined>();
+  const [advertised, setAdvertised] = useState(false);
   const [kbEnabled, setKbEnabled] = useState<boolean>(true);
   const [renderDone, setRenderDone] = useState<(() => void) | undefined>();
   const [colorScheme, setColorScheme] = useState<"dark" | "light">("light");
@@ -263,6 +264,7 @@ export function JoyPanel({ context }: { context: PanelExtensionContext }): JSX.E
   useEffect(() => {
     if (!config.publishMode) {
       setPubTopic(undefined);
+      setAdvertised(false);
       return undefined;
     }
 
@@ -274,20 +276,32 @@ export function JoyPanel({ context }: { context: PanelExtensionContext }): JSX.E
     const options = joyAdvertisement.datatypes
       ? { datatypes: joyAdvertisement.datatypes }
       : undefined;
-    context.advertise?.(topic, joyAdvertisement.schemaName, options);
-    setPubTopic(topic);
+    if (context.advertise) {
+      context.advertise(topic, joyAdvertisement.schemaName, options);
+      setAdvertised(true);
+      setPubTopic(topic);
+    } else {
+      setAdvertised(false);
+    }
 
     return () => {
       context.unadvertise?.(topic);
+      setAdvertised(false);
     };
   }, [context, config.publishMode, config.pubJoyTopic, joyAdvertisement]);
 
   useEffect(() => {
-    if (!config.publishMode || !pubTopic || pubTopic !== config.pubJoyTopic || joy == undefined) {
+    if (
+      !config.publishMode ||
+      !pubTopic ||
+      !advertised ||
+      pubTopic !== config.pubJoyTopic ||
+      joy == undefined
+    ) {
       return;
     }
     context.publish?.(pubTopic, joy);
-  }, [context, config.pubJoyTopic, config.publishMode, joy, pubTopic]);
+  }, [context, config.pubJoyTopic, config.publishMode, joy, pubTopic, advertised]);
 
   useEffect(() => {
     renderDone?.();
